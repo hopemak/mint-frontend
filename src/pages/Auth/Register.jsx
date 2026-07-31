@@ -1,0 +1,115 @@
+import React, { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useForm } from 'react-hook-form'
+import toast from 'react-hot-toast'
+import { EyeIcon, EyeSlashIcon, UserIcon, EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline'
+import { useAuth } from '../../context/AuthContext.jsx'
+import authHero from '../../assets/auth-hero.png'
+
+export default function Register() {
+  const { register: registerField, handleSubmit, formState: { errors, isSubmitting } } = useForm()
+  const [showPassword, setShowPassword] = useState(false)
+  const { register } = useAuth()
+  const navigate = useNavigate()
+
+  const onSubmit = async (values) => {
+    const res = await register(values)
+    if (res.ok) {
+      toast.success(res.demo ? 'Account created (demo mode — backend offline)' : 'Account created!')
+      navigate('/dashboard')
+    } else {
+      toast.error('Could not create account')
+    }
+  }
+
+  return (
+    <div className="min-h-screen grid lg:grid-cols-2 bg-white dark:bg-primary-900">
+      <div className="flex flex-col justify-center px-6 sm:px-16 py-12">
+        <div className="max-w-sm mx-auto w-full">
+          <div className="flex gap-6 border-b border-slate-100 dark:border-primary-700 mb-8">
+            <Link to="/login" className="pb-3 text-slate-400">Login</Link>
+            <span className="pb-3 border-b-2 border-primary text-primary font-semibold">Register</span>
+          </div>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <div>
+              <label className="label">Full Name</label>
+              <div className="relative">
+                <UserIcon className="h-5 w-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Jane Doe"
+                  className="input pl-10"
+                  {...registerField('fullName', { required: 'Full name is required' })}
+                />
+              </div>
+              {errors.fullName && <p className="text-xs text-red-500 mt-1">{errors.fullName.message}</p>}
+            </div>
+
+            <div>
+              <label className="label">Email</label>
+              <div className="relative">
+                <EnvelopeIcon className="h-5 w-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  className="input pl-10"
+                  {...registerField('email', { required: 'Email is required' })}
+                />
+              </div>
+              {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>}
+            </div>
+
+            <div>
+              <label className="label">Password</label>
+              <div className="relative">
+                <LockClosedIcon className="h-5 w-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Create a password"
+                  className="input pl-10 pr-10"
+                  {...registerField('password', { required: 'Password is required', minLength: { value: 6, message: 'At least 6 characters' } })}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((s) => !s)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                >
+                  {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                </button>
+              </div>
+              {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password.message}</p>}
+            </div>
+
+            <div>
+              <label className="label">Role</label>
+              <select className="input" {...registerField('role', { required: true })} defaultValue="Founder">
+                <option>Founder</option>
+                <option>Mentor</option>
+                <option>Investor</option>
+                <option>Admin</option>
+              </select>
+            </div>
+
+            <button type="submit" disabled={isSubmitting} className="btn-primary w-full py-3">
+              {isSubmitting ? 'Creating account...' : 'Create Account'}
+            </button>
+
+            <p className="text-center text-sm text-slate-500">
+              Already have an account?{' '}
+              <Link to="/login" className="text-primary font-medium">Sign in</Link>
+            </p>
+          </form>
+        </div>
+      </div>
+
+      <div className="hidden lg:block relative overflow-hidden">
+        <img
+          src={authHero}
+          alt="Empowering Innovation with AI — welcome to the future of incubator technology"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      </div>
+    </div>
+  )
+}
