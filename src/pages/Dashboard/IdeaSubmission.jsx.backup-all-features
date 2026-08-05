@@ -14,6 +14,14 @@ import {
   SparklesIcon,
   CheckCircleIcon,
   LightBulbIcon,
+  PrinterIcon,
+  ChartBarIcon,
+  RocketLaunchIcon,
+  ShieldCheckIcon,
+  UserGroupIcon,
+  CurrencyDollarIcon,
+  GlobeAltIcon,
+  AcademicCapIcon,
 } from '@heroicons/react/24/outline'
 import { PageHeader } from '../../components/ui.jsx'
 import Gauge from '../../components/Gauge.jsx'
@@ -23,17 +31,18 @@ const CATEGORIES = ['Agriculture', 'Healthcare', 'FinTech', 'EdTech', 'CleanTech
 const INDUSTRIES = ['Technology', 'Healthcare', 'Finance', 'Agriculture', 'Education']
 const BUSINESS_MODELS = ['Subscription', 'Freemium', 'Marketplace', 'Licensing', 'Transaction Fee']
 
+// ✅ Export to PDF with professional formatting
 const exportToPDF = async (element, filename = 'evaluation_report.pdf') => {
   try {
     const html2canvas = (await import('html2canvas')).default
     const jsPDF = (await import('jspdf')).default
     
     const canvas = await html2canvas(element, {
-      scale: 2,
+      scale: 3,
       useCORS: true,
       backgroundColor: '#ffffff',
       logging: false,
-      width: 900,
+      width: 1200,
     })
     
     const imgData = canvas.toDataURL('image/png')
@@ -82,7 +91,7 @@ export default function IdeaSubmission() {
   const [uploadedFiles, setUploadedFiles] = useState([])
   const [isEvaluating, setIsEvaluating] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
-  const [activeTab, setActiveTab] = useState('report')
+  const [activeTab, setActiveTab] = useState('overview')
   
   const reportRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -182,7 +191,7 @@ export default function IdeaSubmission() {
               threats: ['Competitors', 'Regulatory changes']
             },
             recommendations: result.recommendations || [],
-            detailedFeedback: generateCleanReport(result, data),
+            detailedFeedback: generatePremiumReport(result, data),
             ideaTitle: data.title,
             ideaProblem: data.problem,
             ideaSolution: data.solution,
@@ -237,7 +246,7 @@ export default function IdeaSubmission() {
         { priority: 'High', title: 'Increase Innovation', description: 'Add unique features to differentiate' },
         { priority: 'Medium', title: 'Strengthen Feasibility', description: 'Break down implementation into phases' },
       ],
-      detailedFeedback: generateCleanReport({ overall_score: overall, ...scores }, data),
+      detailedFeedback: generatePremiumReport({ overall_score: overall, ...scores }, data),
       ideaTitle: data.title,
       ideaProblem: data.problem,
       ideaSolution: data.solution,
@@ -247,9 +256,9 @@ export default function IdeaSubmission() {
   }
 
   // ============================================================
-  // ✅ CLEAN KIMI-STYLE REPORT - No rectangles, professional
+  // ✅ PREMIUM REPORT - 3+ PAGES FOR GOVERNMENT OFFICIALS
   // ============================================================
-  function generateCleanReport(data, formData) {
+  function generatePremiumReport(data, formData) {
     const s = {
       innovation: data.innovation_score || 70,
       feasibility: data.feasibility || 70,
@@ -272,139 +281,173 @@ export default function IdeaSubmission() {
       minute: '2-digit'
     })
     
-    const readiness = Math.round((s.innovation + s.feasibility + s.market + s.financial) / 4)
-    
     return `
-📋 INNOVATION EVALUATION REPORT
-==============================
+╔══════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                              ║
+║                    🏛️  INNOVATION EVALUATION REPORT                                        ║
+║                       MINISTRY OF INNOVATION AND TECHNOLOGY                                  ║
+║                                                                                              ║
+║                    📅 ${date}                                                          ║
+║                    🔖 Report ID: EVAL-${Date.now().toString(36).toUpperCase()}              ║
+║                                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════╝
 
-Generated: ${date}
-Report ID: EVAL-${Date.now().toString(36).toUpperCase()}
 
-─────────────────────────────────────────────────────────────────────────────
 
-IDEA OVERVIEW
-─────────────────────────────────────────────────────────────────────────────
+╔══════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                   📊 EXECUTIVE SUMMARY                                      ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════╝
 
-Title: ${title}
-Category: ${formData?.category || 'General'}
-Industry: ${formData?.industry || 'Technology'}
-Innovation Level: ${formData?.innovation_level || 5}/10
+┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                              │
+│   IDEA TITLE: ${title}                                                                      │
+│                                                                                              │
+│   OVERALL SCORE: ${overall}%  │  RATING: ${rating}  │  STATUS: ${data.approval_status || 'Under Review'}  │
+│                                                                                              │
+│   RECOMMENDATION: ${overall >= 75 ? '✅ APPROVED - Highly Recommended for Funding' : 
+                      overall >= 60 ? '⚠️ CONDITIONALLY APPROVED - Requires Refinement' : 
+                      '❌ NOT APPROVED - Needs Significant Improvement'}                    │
+│                                                                                              │
+└──────────────────────────────────────────────────────────────────────────────────────────────┘
 
-Problem Statement:
-${problem}
 
-Proposed Solution:
-${solution}
+╔══════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                    📝 IDEA OVERVIEW                                         ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════╝
 
-Target Market: ${formData?.target_market || 'Not specified'}
-Business Model: ${formData?.business_model || 'Not specified'}
+┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                              │
+│   PROBLEM STATEMENT:                                                                        │
+│   ${problem}                                                                                 │
+│                                                                                              │
+│   PROPOSED SOLUTION:                                                                        │
+│   ${solution}                                                                                │
+│                                                                                              │
+│   CATEGORY: ${formData?.category || 'General'}              INDUSTRY: ${formData?.industry || 'Technology'}   │
+│   INNOVATION LEVEL: ${formData?.innovation_level || 5}/10                                   │
+│                                                                                              │
+└──────────────────────────────────────────────────────────────────────────────────────────────┘
 
-─────────────────────────────────────────────────────────────────────────────
 
-EXECUTIVE SUMMARY
-─────────────────────────────────────────────────────────────────────────────
+╔══════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                    📊 SCORE ANALYSIS                                        ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════╝
 
-Overall Score: ${overall}% (${rating})
-Status: ${data.approval_status || 'Under Review'}
-Readiness: ${readiness}%
+┌───────────────────┬─────────────┬────────────────────────────────────────────────────────────┐
+│                   │    SCORE    │                    ASSESSMENT                              │
+├───────────────────┼─────────────┼────────────────────────────────────────────────────────────┤
+│ 🚀 INNOVATION     │   ${s.innovation}%    │ ${s.innovation >= 75 ? '✅ EXCELLENT - Highly innovative' : 
+                         s.innovation >= 60 ? '🟡 GOOD - Moderately innovative' : 
+                         '🔴 NEEDS IMPROVEMENT - Limited innovation'}                           │
+├───────────────────┼─────────────┼────────────────────────────────────────────────────────────┤
+│ ⚙️ FEASIBILITY    │   ${s.feasibility}%    │ ${s.feasibility >= 75 ? '✅ EXCELLENT - Highly feasible' : 
+                         s.feasibility >= 60 ? '🟡 GOOD - Moderately feasible' : 
+                         '🔴 NEEDS IMPROVEMENT - Feasibility concerns'}                         │
+├───────────────────┼─────────────┼────────────────────────────────────────────────────────────┤
+│ 📈 MARKET         │   ${s.market}%    │ ${s.market >= 75 ? '✅ EXCELLENT - Strong market potential' : 
+                         s.market >= 60 ? '🟡 GOOD - Moderate market potential' : 
+                         '🔴 NEEDS IMPROVEMENT - Limited market opportunity'}                   │
+├───────────────────┼─────────────┼────────────────────────────────────────────────────────────┤
+│ 💻 TECHNICAL      │   ${s.technical}%    │ ${s.technical >= 75 ? '✅ EXCELLENT - Technically sound' : 
+                         s.technical >= 60 ? '🟡 GOOD - Technically moderate' : 
+                         '🔴 NEEDS IMPROVEMENT - Technical challenges'}                         │
+├───────────────────┼─────────────┼────────────────────────────────────────────────────────────┤
+│ 🌍 SOCIAL IMPACT  │   ${s.social}%    │ ${s.social >= 75 ? '✅ EXCELLENT - Strong social impact' : 
+                         s.social >= 60 ? '🟡 GOOD - Moderate social impact' : 
+                         '🔴 NEEDS IMPROVEMENT - Limited social impact'}                        │
+├───────────────────┼─────────────┼────────────────────────────────────────────────────────────┤
+│ 💰 FINANCIAL      │   ${s.financial}%    │ ${s.financial >= 75 ? '✅ EXCELLENT - Financially viable' : 
+                         s.financial >= 60 ? '🟡 GOOD - Moderately viable' : 
+                         '🔴 NEEDS IMPROVEMENT - Financial concerns'}                           │
+└───────────────────┴─────────────┴────────────────────────────────────────────────────────────┘
 
-Key Strengths:
-${s.innovation >= 75 ? `  • Innovation: ${s.innovation}% - Strong creative thinking` : `  • Innovation: ${s.innovation}% - Moderate, can be improved`}
-${s.market >= 75 ? `  • Market Potential: ${s.market}% - Strong opportunity` : `  • Market Potential: ${s.market}% - Moderate, needs validation`}
-${s.social >= 75 ? `  • Social Impact: ${s.social}% - Significant positive impact` : `  • Social Impact: ${s.social}% - Moderate, can be enhanced`}
 
-Key Weaknesses:
-${s.feasibility < 75 ? `  • Feasibility: ${s.feasibility}% - Needs strengthening` : `  • Feasibility: ${s.feasibility}% - Good`}
-${s.financial < 75 ? `  • Financial Viability: ${s.financial}% - Needs improvement` : `  • Financial Viability: ${s.financial}% - Good`}
+╔══════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                    🎯 SWOT ANALYSIS                                         ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════╝
 
-─────────────────────────────────────────────────────────────────────────────
+┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                              │
+│   ✅ STRENGTHS                                                                              │
+│   ${(data.swot?.strengths || ['Strong technical foundation', 'Clear market opportunity']).map(s => `   • ${s}`).join('\n')}│
+│                                                                                              │
+│   ❌ WEAKNESSES                                                                             │
+│   ${(data.swot?.weaknesses || ['Limited resources', 'Market competition']).map(s => `   • ${s}`).join('\n')}       │
+│                                                                                              │
+│   📈 OPPORTUNITIES                                                                          │
+│   ${(data.swot?.opportunities || ['Growing market demand', 'Government support']).map(s => `   • ${s}`).join('\n')} │
+│                                                                                              │
+│   ⚠️ THREATS                                                                                │
+│   ${(data.swot?.threats || ['New competitors', 'Regulatory changes']).map(s => `   • ${s}`).join('\n')}              │
+│                                                                                              │
+└──────────────────────────────────────────────────────────────────────────────────────────────┘
 
-DETAILED SCORE ANALYSIS
-─────────────────────────────────────────────────────────────────────────────
 
-Innovation: ${s.innovation}%
-Feasibility: ${s.feasibility}%
-Market Potential: ${s.market}%
-Technical Complexity: ${s.technical}%
-Social Impact: ${s.social}%
-Financial Viability: ${s.financial}%
+╔══════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                    🛡️ RISK ASSESSMENT                                      ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════╝
 
-Average Score: ${Math.round((s.innovation + s.market + s.feasibility + s.technical + s.social + s.financial) / 6)}%
+┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                              │
+${(data.risk_analysis || data.risks || []).map(r => 
+`   │   ${r.name.padEnd(25)} ${r.level.padEnd(12)} ${r.level === 'High' ? '🔴 High Impact' : 
+                                                         r.level === 'Medium' ? '🟡 Medium Impact' : 
+                                                         '🟢 Low Impact'}                     │`
+).join('\n')}
+│                                                                                              │
+└──────────────────────────────────────────────────────────────────────────────────────────────┘
 
-─────────────────────────────────────────────────────────────────────────────
 
-SWOT ANALYSIS
-─────────────────────────────────────────────────────────────────────────────
+╔══════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                    💡 RECOMMENDATIONS                                       ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════╝
 
-Strengths:
-${(data.swot?.strengths || ['Strong technical foundation', 'Clear market opportunity']).map(s => `  • ${s}`).join('\n')}
-
-Weaknesses:
-${(data.swot?.weaknesses || ['Limited resources', 'Competition']).map(s => `  • ${s}`).join('\n')}
-
-Opportunities:
-${(data.swot?.opportunities || ['Growing market', 'Government support']).map(s => `  • ${s}`).join('\n')}
-
-Threats:
-${(data.swot?.threats || ['Competitors', 'Regulatory changes']).map(s => `  • ${s}`).join('\n')}
-
-─────────────────────────────────────────────────────────────────────────────
-
-RISK ASSESSMENT
-─────────────────────────────────────────────────────────────────────────────
-
-${(data.risk_analysis || data.risks || []).map(r => `  ${r.name}: ${r.level}`).join('\n')}
-
-─────────────────────────────────────────────────────────────────────────────
-
-RECOMMENDATIONS
-─────────────────────────────────────────────────────────────────────────────
-
+┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                              │
 ${(data.recommendations || [
   { priority: 'High', title: 'Increase Innovation', description: 'Add unique features to differentiate from competitors' },
   { priority: 'Medium', title: 'Strengthen Feasibility', description: 'Break down implementation into smaller phases' },
   { priority: 'Medium', title: 'Expand Market Research', description: 'Conduct surveys to validate demand' }
-]).map((rec, i) => `  ${i+1}. [${rec.priority}] ${rec.title}\n     ${rec.description || ''}`).join('\n\n')}
+]).map((rec, i) => 
+`   │   ${i+1}. [${rec.priority || 'Medium'}] ${rec.title}                                      │
+   │      ${rec.description || ''}                                                           │`
+).join('\n')}
+│                                                                                              │
+└──────────────────────────────────────────────────────────────────────────────────────────────┘
 
-─────────────────────────────────────────────────────────────────────────────
 
-FUNDING RECOMMENDATION
-─────────────────────────────────────────────────────────────────────────────
+╔══════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                    📋 CONCLUSION & NEXT STEPS                               ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════╝
 
-${overall >= 80 ? 'Approved - High Priority'
-  : overall >= 70 ? 'Approved - Medium Priority'
-  : overall >= 60 ? 'Conditionally Approved'
-  : 'Not Recommended'}
+┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                              │
+│   Based on the comprehensive evaluation of "${title}", the following conclusions are made:   │
+│                                                                                              │
+│   • Overall Score: ${overall}% (${rating})                                                  │
+│   • Innovation Potential: ${s.innovation >= 75 ? 'High' : 'Moderate'}                      │
+│   • Market Viability: ${s.market >= 75 ? 'Strong' : 'Moderate'}                            │
+│   • Social Impact: ${s.social >= 75 ? 'Significant' : 'Moderate'}                          │
+│                                                                                              │
+│   ✅ RECOMMENDED ACTIONS:                                                                   │
+${(data.recommendations || []).slice(0, 4).map((rec, i) => 
+`   │   ${i+1}. ${rec.title}                                                                    │`
+).join('\n')}
+│                                                                                              │
+│   📅 Next Review: ${new Date(Date.now() + 30*24*60*60*1000).toLocaleDateString()}                              │
+│                                                                                              │
+└──────────────────────────────────────────────────────────────────────────────────────────────┘
 
-Justification: ${overall >= 70 ? 'Strong potential for successful implementation' : 'Needs refinement before funding'}
 
-─────────────────────────────────────────────────────────────────────────────
-
-IMPLEMENTATION TIMELINE
-─────────────────────────────────────────────────────────────────────────────
-
-Phase 1: Research & Validation (2 months)
-Phase 2: MVP Development (4 months)
-Phase 3: Pilot Launch (3 months)
-Phase 4: Market Expansion (6 months)
-
-Total Estimated Time: 15 months
-
-─────────────────────────────────────────────────────────────────────────────
-
-CONCLUSION
-─────────────────────────────────────────────────────────────────────────────
-
-${title} demonstrates ${overall >= 70 ? 'strong' : 'moderate'} potential for innovation in Ethiopia.
-
-${overall >= 70 ? 'Recommended for funding and further development.' : 'Requires additional refinement before resubmission.'}
-
-─────────────────────────────────────────────────────────────────────────────
-
-Mint Innovation Incubator Platform
-Powered by Groq AI • Real-time Evaluation • v4.0
-CONFIDENTIAL - For Official Use Only
+╔══════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                              ║
+║   🏛️  Mint Innovation Incubator Platform                                                   ║
+║   Powered by Groq AI • Real-time Evaluation • Version 3.0                                 ║
+║                                                                                              ║
+║   This report is generated automatically by the AI Evaluation System.                        ║
+║   For verification, contact: innovation@mint.gov.et                                        ║
+║                                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════╝
 `
   }
 
@@ -529,18 +572,20 @@ CONFIDENTIAL - For Official Use Only
         <div className="mt-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-heading font-semibold text-ink text-xl">📄 Evaluation Report</h2>
-            <button
-              onClick={handleExportPDF}
-              disabled={isExporting}
-              className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 ${
-                isExporting 
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-                  : 'bg-[#1D4241] text-white hover:bg-[#163535]'
-              }`}
-            >
-              <ArrowDownTrayIcon className="h-4 w-4" />
-              {isExporting ? 'Exporting...' : 'Export PDF'}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={handleExportPDF}
+                disabled={isExporting}
+                className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 ${
+                  isExporting 
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                    : 'bg-[#1D4241] text-white hover:bg-[#163535]'
+                }`}
+              >
+                <ArrowDownTrayIcon className="h-4 w-4" />
+                {isExporting ? 'Exporting...' : 'Export PDF'}
+              </button>
+            </div>
           </div>
           
           <div className="border-b border-gray-200 mb-6">
@@ -563,9 +608,9 @@ CONFIDENTIAL - For Official Use Only
           
           {activeTab === 'report' && (
             <div className="card p-6 bg-white">
-              <div ref={reportRef} className="bg-white p-8 rounded-lg">
+              <div ref={reportRef} className="bg-white p-8 rounded-lg shadow-sm border border-gray-200">
                 <div className="prose prose-sm max-w-none">
-                  <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">
+                  <pre className="text-sm text-gray-800 whitespace-pre-wrap font-mono leading-relaxed">
                     {evaluationResult.detailedFeedback}
                   </pre>
                 </div>

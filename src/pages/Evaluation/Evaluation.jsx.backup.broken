@@ -15,6 +15,7 @@ import {
   InformationCircleIcon,
   ChatBubbleLeftIcon,
   PaperAirplaneIcon,
+  EllipsisHorizontalIcon,
   ChevronRightIcon,
   Squares2X2Icon,
   AdjustmentsHorizontalIcon,
@@ -39,69 +40,70 @@ const scoreLabels = [
 
 function scoreTone(score) {
   if (score >= 90) return { label: 'Success', bar: 'bg-emerald-500', text: 'text-emerald-600' }
-  if (score >= 75) return { label: 'Primary', bar: 'bg-[#1D4241]', text: 'text-[#1D4241]' }
+  if (score >= 75) return { label: 'Primary', bar: 'bg-primary', text: 'text-primary' }
   if (score >= 60) return { label: 'Warning', bar: 'bg-amber-500', text: 'text-amber-600' }
   return { label: 'Critical', bar: 'bg-red-500', text: 'text-red-600' }
 }
 
-function generateImprovements(scores) {
-  const improvements = []
-  
-  if (scores.innovation < 75) {
-    improvements.push({
-      title: 'Increase Innovation',
-      detail: 'Research existing solutions and add unique features that differentiate your idea from competitors.'
-    })
-  }
-  
-  if (scores.feasibility < 75) {
-    improvements.push({
-      title: 'Strengthen Feasibility',
-      detail: 'Break down implementation into smaller phases and address technical challenges early.'
-    })
-  }
-  
-  if (scores.marketPotential < 75) {
-    improvements.push({
-      title: 'Expand Market Research',
-      detail: 'Conduct surveys and interviews with potential customers to validate market demand.'
-    })
-  }
-  
-  if (scores.technicalComplexity < 75) {
-    improvements.push({
-      title: 'Simplify Technical Approach',
-      detail: 'Consider using existing technologies and platforms before building from scratch.'
-    })
-  }
-  
-  if (scores.socialImpact < 75) {
-    improvements.push({
-      title: 'Enhance Social Impact',
-      detail: 'Identify specific communities or groups that would benefit most from your solution.'
-    })
-  }
-  
-  if (scores.financialViability < 75) {
-    improvements.push({
-      title: 'Refine Financial Model',
-      detail: 'Create detailed revenue projections and identify cost-saving opportunities.'
-    })
-  }
-  
-  if (improvements.length === 0) {
-    improvements.push({
-      title: 'Maintain Momentum',
-      detail: 'Continue developing your idea and seek feedback from mentors and potential users.'
-    })
-    improvements.push({
-      title: 'Plan for Scale',
-      detail: 'Develop a growth strategy that includes marketing, partnerships, and funding.'
-    })
-  }
-  
-  return improvements.slice(0, 4)
+// --- REAL backend feedback parsing ---
+// app/models/idea_evaluator.py's _generate_feedback() returns ONE string:
+// several sentences, optionally ending with "Recommendations: A; B; C".
+// This splits that real, per-idea text into (1) general commentary
+// sentences for "Smart Suggestions" and (2) the specific recommendations
+// for "Suggested Improvements" — instead of ignoring it and showing
+// generic bucketed/hardcoded text.
+function parseBackendFeedback(feedbackStr) {
+  if (!feedbackStr) return { suggestions: [], recommendations: [] }
+  const recMatch = feedbackStr.match(/Recommendations:\s*(.+)$/)
+  const mainText = recMatch ? feedbackStr.slice(0, recMatch.index).trim() : feedbackStr.trim()
+  const suggestions = mainText.split(/(?<=\.)\s+/).filter(Boolean)
+  const recommendations = recMatch
+    ? recMatch[1].split(';').map((s) => s.trim()).filter(Boolean)
+    : []
+  return { suggestions, recommendations }
 }
+
+// Maps each backend recommendation phrase (from _generate_feedback's
+// `recommendations` list) to a short card title, so "Suggested
+// Improvements" reads as clean title+detail cards instead of raw
+// sentences, while still being 100% driven by the real backend text.
+const RECOMMENDATION_TITLES = [
+  { match: /novelty/i, title: 'Increase Innovation' },
+  { match: /implementation plan/i, title: 'Strengthen Feasibility' },
+  { match: /market research/i, title: 'Deepen Market Research' },
+  { match: /social impact/i, title: 'Strengthen Social Impact' },
+  { match: /financial projections/i, title: 'Refine Financial Plan' },
+]
+
+function titleForRecommendation(text) {
+  const found = RECOMMENDATION_TITLES.find((r) => r.match.test(text))
+  return found ? found.title : 'Suggested Improvement'
+}
+
+// Fallback ONLY used when there's no backend text at all (e.g. showing
+// sample/offline data) — the real path above always wins when available.
+const fallbackFeedback = (data) => {
+  const suggestions = []
+  if (data.innovation_score > 80) suggestions.push('🌟 Your idea shows exceptional innovation and creative thinking!')
+  else if (data.innovation_score > 60) suggestions.push('💡 Good innovation level - consider adding more disruptive elements.')
+  else suggestions.push('📈 Your idea could benefit from more innovative approaches.')
+
+  if (data.market_potential > 80) suggestions.push('🎯 Excellent market potential - you have identified a clear opportunity.')
+  else if (data.market_potential > 60) suggestions.push('📊 Market opportunity exists - refine your targeting strategy.')
+  else suggestions.push('🔍 Consider expanding your market analysis and target audience.')
+
+  if (data.feasibility > 80) suggestions.push('✅ Highly feasible - you have strong fundamentals in place.')
+  else if (data.feasibility > 60) suggestions.push('⚙️ Feasibility is moderate - address key implementation challenges.')
+  else suggestions.push('🚧 Feasibility needs improvement - break down implementation steps.')
+
+  return suggestions
+}
+
+const fallbackImprovements = [
+  { title: 'Refine user interface', detail: 'Simplify onboarding to reduce drop-off.' },
+  { title: 'Target a specific niche', detail: 'Narrow initial launch to one region.' },
+  { title: 'Optimize unit economics', detail: 'Reduce customer acquisition cost.' },
+]
 
 const improvementIcons = [Squares2X2Icon, AdjustmentsHorizontalIcon, SparklesIcon, ArrowTrendingUpIcon]
 
@@ -115,12 +117,12 @@ export default function Evaluation() {
   const [showForm, setShowForm] = useState(false)
 
   const [formData, setFormData] = useState({
-    title: 'AgriTech Solutions - Smart Farming Platform',
+    title: 'AgriSense AI - Precision Agriculture',
     description: 'AI-powered platform for Ethiopian farmers using computer vision and IoT sensors for crop disease detection with 95% accuracy. Provides real-time SMS alerts.',
     category: 'Agriculture',
     industry: 'AI/ML',
-    target_market: '5 million smallholder farmers in Ethiopia',
-    business_model: 'Freemium SaaS - Premium at $5/month',
+    target_market: '5 million smallholder farmers in Ethiopia, 1 million with smartphone access',
+    business_model: 'Freemium SaaS - Premium at $5/month, Enterprise at $200/month',
     innovation_level: 8,
     market_potential: 90,
     feasibility: 78,
@@ -153,7 +155,6 @@ export default function Evaluation() {
     })
     setEvaluationData(null)
     setIsFallback(false)
-    setChatMessages([])
     setShowForm(true)
     toast.success('Ready for a new idea! 🚀')
   }
@@ -186,30 +187,40 @@ export default function Evaluation() {
 
       if (response.data?.success) {
         const data = response.data.data
-        
-        const scores = {
-          innovation: data.innovation_score || 70,
+
+        // Use the REAL backend-generated feedback text instead of a
+        // generic client-side heuristic.
+        const { suggestions, recommendations } = parseBackendFeedback(data.feedback)
+        const aiFeedback = suggestions.length ? suggestions : fallbackFeedback({
+          innovation_score: data.innovation_score || 70,
+          market_potential: data.market_potential || 70,
           feasibility: data.feasibility || 70,
-          marketPotential: data.market_potential || 70,
-          technicalComplexity: data.technical_complexity || 50,
-          socialImpact: data.social_impact || 70,
-          financialViability: data.financial_viability || 70,
-        }
-        
-        const dynamicImprovements = generateImprovements(scores)
-        
+        })
+
+        // Build "Suggested Improvements" from the backend's own
+        // recommendations (real, per-idea) instead of a fixed array.
+        const suggestedImprovements = recommendations.length
+          ? recommendations.map((text) => ({ title: titleForRecommendation(text), detail: text }))
+          : fallbackImprovements
+
         setEvaluationData({
           overallScore: data.overall_score || 80,
           rating: data.rating || 'Good',
-          title: formData.title,
-          scores: scores,
+          scores: {
+            innovation: data.innovation_score || 70,
+            feasibility: data.feasibility || 70,
+            marketPotential: data.market_potential || 70,
+            technicalComplexity: data.technical_complexity || 50,
+            socialImpact: data.social_impact || 70,
+            financialViability: data.financial_viability || 70,
+          },
           radar: [
-            { subject: 'Innovation', value: scores.innovation },
-            { subject: 'Feasibility', value: scores.feasibility },
-            { subject: 'Market', value: scores.marketPotential },
-            { subject: 'Technical', value: scores.technicalComplexity },
-            { subject: 'Social', value: scores.socialImpact },
-            { subject: 'Financial', value: scores.financialViability },
+            { subject: 'Innovation', value: data.innovation_score || 70 },
+            { subject: 'Feasibility', value: data.feasibility || 70 },
+            { subject: 'Market', value: data.market_potential || 70 },
+            { subject: 'Technical', value: data.technical_complexity || 50 },
+            { subject: 'Social', value: data.social_impact || 70 },
+            { subject: 'Financial', value: data.financial_viability || 70 },
           ],
           risks: [
             { name: 'Technological', level: data.risk_score > 50 ? 'Medium' : 'Low' },
@@ -223,8 +234,8 @@ export default function Evaluation() {
             threats: ['New entrants with more capital', 'Regulatory delays possible'],
           },
           approvalStatus: data.approval_status || 'Under Review',
-          suggestedImprovements: dynamicImprovements,
-          feedback: data.feedback ? [data.feedback] : ["👋 Hi! I'm your AI assistant. Ask me anything about your evaluation!"],
+          suggestedImprovements,
+          feedback: aiFeedback,
         })
         setIsFallback(false)
         toast.success('✅ Evaluation complete!')
@@ -235,62 +246,62 @@ export default function Evaluation() {
       console.error('❌ Backend Error:', error)
       const enhancedSample = {
         ...sampleEvaluation,
-        title: formData.title,
-        feedback: ["👋 Hi! I'm your AI assistant. Ask me anything about your evaluation!"],
-        suggestedImprovements: [
-          { title: 'Refine user interface', detail: 'Simplify onboarding to reduce drop-off.' },
-          { title: 'Target a specific niche', detail: 'Narrow initial launch to one region.' },
-          { title: 'Optimize unit economics', detail: 'Reduce customer acquisition cost.' },
-        ],
+        feedback: fallbackFeedback({
+          innovation_score: 75,
+          market_potential: 80,
+          feasibility: 70,
+        }),
+        suggestedImprovements: sampleEvaluation.suggestedImprovements || fallbackImprovements,
       }
       setEvaluationData(enhancedSample)
       setIsFallback(true)
-      toast.error('⚠️ Using sample data')
+      toast.error('⚠️ Using sample data - Backend not available')
     } finally {
       setLoading(false)
     }
   }
 
-  // ✅ FIXED CHAT FUNCTION - Works with Groq
+  const displayData = evaluationData || sampleEvaluation
+
+  const aiSuggestions = displayData.feedback || fallbackFeedback({
+    innovation_score: displayData.scores?.innovation || 75,
+    market_potential: displayData.scores?.marketPotential || 80,
+    feasibility: displayData.scores?.feasibility || 70,
+  })
+
   const handleChatSubmit = async (e) => {
     e.preventDefault()
-    const message = chatDraft.trim()
-    if (!message) return
+    const query = chatDraft.trim()
+    if (!query) return
 
-    console.log('💬 Chat message (string):', message)
-
-    setChatMessages((prev) => [...prev, { role: 'user', text: message }])
+    setChatMessages((prev) => [...prev, { role: 'user', text: query }])
     setChatDraft('')
     setIsChatSending(true)
 
     try {
-      const context = {
-        title: evaluationData?.title || formData.title,
-        overallScore: evaluationData?.overallScore,
-        scores: evaluationData?.scores,
-        feedback: evaluationData?.feedback,
-        rating: evaluationData?.rating,
-      }
-
-      const response = await mlAPI.chat(message, context)
-      
-      const reply = response.data?.data?.reply || 
-                    response.data?.data?.response || 
-                    "I'm sorry, I couldn't generate a response."
-      setChatMessages((prev) => [...prev, { role: 'assistant', text: reply }])
-    } catch (error) {
-      console.error('Chat error:', error)
-      setChatMessages((prev) => [...prev, { 
-        role: 'assistant', 
-        text: "The AI assistant is temporarily unavailable. Please ensure the backend is running on port 5000." 
-      }])
+      const { data } = await mlAPI.chat(query, {
+        title: displayData.title || formData.title,
+        overallScore: displayData.overallScore,
+        scores: {
+          innovation_score: displayData.scores?.innovation,
+          feasibility: displayData.scores?.feasibility,
+          market_potential: displayData.scores?.marketPotential,
+          technical_complexity: displayData.scores?.technicalComplexity,
+          social_impact: displayData.scores?.socialImpact,
+          financial_viability: displayData.scores?.financialViability,
+        },
+        feedback: Array.isArray(displayData.feedback) ? displayData.feedback.join(' ') : displayData.feedback,
+      })
+      const replyText = data?.data?.response || data?.response || "Sorry, I couldn't generate a response."
+      setChatMessages((prev) => [...prev, { role: 'assistant', text: replyText }])
+    } catch (err) {
+      console.error('Chat error:', err)
+      setChatMessages((prev) => [...prev, { role: 'assistant', text: 'The AI assistant is unavailable right now — check that ml-ai-service is running.' }])
+      toast.error('Chat request failed')
     } finally {
       setIsChatSending(false)
     }
   }
-
-  const displayData = evaluationData || sampleEvaluation
-  const aiFeedback = displayData.feedback || ["👋 Hi! I'm your AI assistant. Ask me anything about your evaluation!"]
 
   if (loading) return <LoadingBlock label="Running AI evaluation..." />
 
@@ -323,7 +334,7 @@ export default function Evaluation() {
                 name="title"
                 value={formData.title}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1D4241] focus:border-transparent outline-none"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                 placeholder="Enter your idea title"
               />
             </div>
@@ -333,7 +344,7 @@ export default function Evaluation() {
                 name="description"
                 value={formData.description}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1D4241] focus:border-transparent outline-none"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                 rows="3"
                 placeholder="Describe your idea in detail..."
               />
@@ -344,7 +355,7 @@ export default function Evaluation() {
                 name="category"
                 value={formData.category}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1D4241] focus:border-transparent outline-none"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
               >
                 <option value="">Select Category</option>
                 <option value="Agriculture">Agriculture</option>
@@ -361,7 +372,7 @@ export default function Evaluation() {
                 name="industry"
                 value={formData.industry}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1D4241] focus:border-transparent outline-none"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
               >
                 <option value="">Select Industry</option>
                 <option value="Technology">Technology</option>
@@ -384,7 +395,7 @@ export default function Evaluation() {
               />
               <div className="flex justify-between text-xs text-gray-500">
                 <span>Low</span>
-                <span className="font-medium text-[#1D4241]">{formData.innovation_level}/10</span>
+                <span className="font-medium text-primary">{formData.innovation_level}/10</span>
                 <span>High</span>
               </div>
             </div>
@@ -395,7 +406,7 @@ export default function Evaluation() {
                 name="market_potential"
                 value={formData.market_potential}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1D4241] focus:border-transparent outline-none"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                 min="0"
                 max="100"
               />
@@ -407,7 +418,7 @@ export default function Evaluation() {
                 name="feasibility"
                 value={formData.feasibility}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1D4241] focus:border-transparent outline-none"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                 min="0"
                 max="100"
               />
@@ -419,7 +430,7 @@ export default function Evaluation() {
                 name="financial_plan"
                 value={formData.financial_plan}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1D4241] focus:border-transparent outline-none"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                 min="0"
                 max="100"
               />
@@ -431,7 +442,7 @@ export default function Evaluation() {
                 name="social_impact"
                 value={formData.social_impact}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1D4241] focus:border-transparent outline-none"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                 min="0"
                 max="100"
               />
@@ -443,7 +454,7 @@ export default function Evaluation() {
                 name="team_capability"
                 value={formData.team_capability}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1D4241] focus:border-transparent outline-none"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                 min="0"
                 max="100"
               />
@@ -455,7 +466,7 @@ export default function Evaluation() {
                 name="overall_risk"
                 value={formData.overall_risk}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1D4241] focus:border-transparent outline-none"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                 min="0"
                 max="100"
               />
@@ -472,10 +483,10 @@ export default function Evaluation() {
         </div>
       )}
 
-      <div className="card p-6 mb-6 bg-gradient-to-r from-[#1D4241] via-[#1D4241]/90 to-[#EF9C82] text-white">
+      <div className="card p-6 mb-6 bg-gradient-to-r from-primary via-primary-600 to-accent-500 text-white">
         <p className="text-sm opacity-80 mb-1 flex items-center gap-1.5">
           AI Overall Score
-          <InformationCircleIcon className="h-4 w-4 opacity-80" />
+          <InformationCircleIcon className="h-4 w-4 opacity-80" title="Composite score across all evaluation dimensions" />
         </p>
         <div className="flex items-center gap-4">
           <span className="font-heading text-5xl font-bold">{displayData.overallScore}</span>
@@ -543,15 +554,15 @@ export default function Evaluation() {
                     {displayData.swot.weaknesses.map((s) => <li key={s}>{s}</li>)}
                   </ul>
                 </div>
-                <div className="rounded-xl bg-[#1D4241]/10 border border-[#1D4241]/20 p-3.5">
-                  <p className="flex items-center gap-1.5 font-medium text-[#1D4241] mb-1.5"><MegaphoneIcon className="h-4 w-4" /> Opportunities</p>
-                  <ul className="text-[#1D4241]/80 space-y-1 list-disc list-inside">
+                <div className="rounded-xl bg-primary/10 border border-primary/20 p-3.5">
+                  <p className="flex items-center gap-1.5 font-medium text-primary mb-1.5"><MegaphoneIcon className="h-4 w-4" /> Opportunities</p>
+                  <ul className="text-primary/80 space-y-1 list-disc list-inside">
                     {displayData.swot.opportunities.map((s) => <li key={s}>{s}</li>)}
                   </ul>
                 </div>
-                <div className="rounded-xl bg-[#EF9C82]/10 border border-[#EF9C82]/30 p-3.5">
-                  <p className="flex items-center gap-1.5 font-medium text-[#EF9C82] mb-1.5"><ExclamationTriangleIcon className="h-4 w-4" /> Threats</p>
-                  <ul className="text-[#EF9C82]/80 space-y-1 list-disc list-inside">
+                <div className="rounded-xl bg-accent-50 border border-accent-200 p-3.5">
+                  <p className="flex items-center gap-1.5 font-medium text-accent-600 mb-1.5"><ExclamationTriangleIcon className="h-4 w-4" /> Threats</p>
+                  <ul className="text-accent-600/80 space-y-1 list-disc list-inside">
                     {displayData.swot.threats.map((s) => <li key={s}>{s}</li>)}
                   </ul>
                 </div>
@@ -567,38 +578,38 @@ export default function Evaluation() {
 
         <aside className="lg:col-span-1 space-y-6 h-fit lg:sticky lg:top-20">
           <div className="card p-5">
-            <h2 className="font-heading font-semibold text-ink dark:text-white mb-3 flex items-center gap-2">
-              <ChatBubbleLeftIcon className="h-5 w-5 text-[#1D4241]" />
-              AI Chat Assistant
-            </h2>
-            <div className="space-y-2.5 mb-3 max-h-[200px] overflow-y-auto">
-              {chatMessages.length > 0 ? (
-                chatMessages.map((msg, idx) => (
-                  <div key={idx} className={`flex gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                    <div className={`h-6 w-6 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'user' ? 'bg-[#EF9C82]' : 'bg-[#1D4241]'}`}>
-                      <ChatBubbleLeftIcon className="h-3.5 w-3.5 text-white" />
-                    </div>
-                    <p className={`rounded-xl p-2.5 text-xs max-w-[85%] ${msg.role === 'user' ? 'bg-[#EF9C82]/10 text-ink' : 'bg-slate-50 text-slate-600'}`}>
-                      {msg.text}
-                    </p>
-                  </div>
-                ))
-              ) : (
-                <div className="flex gap-2">
-                  <div className="h-6 w-6 rounded-full bg-[#1D4241] text-white flex items-center justify-center shrink-0">
+            <h2 className="font-heading font-semibold text-ink dark:text-white mb-3">AI Generated Feedback</h2>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-medium text-ink dark:text-white">Smart Suggestions</p>
+              <button type="button" aria-label="More options" className="text-slate-400 hover:text-slate-600">
+                <EllipsisHorizontalIcon className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-2.5 mb-3">
+              {aiSuggestions.map((msg) => (
+                <div key={msg} className="flex gap-2">
+                  <div className="h-6 w-6 rounded-full bg-primary text-white flex items-center justify-center shrink-0">
                     <ChatBubbleLeftIcon className="h-3.5 w-3.5" />
                   </div>
-                  <p className="rounded-xl bg-slate-50 p-2.5 text-xs text-slate-600">
-                    {aiFeedback}
+                  <p className="rounded-xl bg-slate-50 dark:bg-primary-700 p-2.5 text-xs text-slate-600 dark:text-slate-200">{msg}</p>
+                </div>
+              ))}
+              {chatMessages.map((m, i) => (
+                <div key={i} className={`flex gap-2 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                  <div className={`h-6 w-6 rounded-full flex items-center justify-center shrink-0 ${m.role === 'user' ? 'bg-accent text-primary-800' : 'bg-primary text-white'}`}>
+                    <ChatBubbleLeftIcon className="h-3.5 w-3.5" />
+                  </div>
+                  <p className={`rounded-xl p-2.5 text-xs ${m.role === 'user' ? 'bg-accent-50 text-ink dark:text-white' : 'bg-slate-50 dark:bg-primary-700 text-slate-600 dark:text-slate-200'}`}>
+                    {m.text}
                   </p>
                 </div>
-              )}
+              ))}
               {isChatSending && (
                 <div className="flex gap-2">
-                  <div className="h-6 w-6 rounded-full bg-[#1D4241] text-white flex items-center justify-center shrink-0">
+                  <div className="h-6 w-6 rounded-full bg-primary text-white flex items-center justify-center shrink-0">
                     <ChatBubbleLeftIcon className="h-3.5 w-3.5" />
                   </div>
-                  <p className="rounded-xl bg-slate-50 p-2.5 text-xs text-slate-400 animate-pulse">Thinking...</p>
+                  <p className="rounded-xl bg-slate-50 dark:bg-primary-700 p-2.5 text-xs text-slate-400 animate-pulse">Thinking…</p>
                 </div>
               )}
             </div>
@@ -606,7 +617,7 @@ export default function Evaluation() {
               <input
                 value={chatDraft}
                 onChange={(e) => setChatDraft(e.target.value)}
-                placeholder="Ask about your evaluation..."
+                placeholder="Ask about your scores, risks, or how to improve..."
                 className="input flex-1 py-2 text-sm"
                 disabled={isChatSending}
               />
@@ -617,34 +628,32 @@ export default function Evaluation() {
           </div>
 
           <div className="card p-5">
-            <h2 className="font-heading font-semibold text-ink dark:text-white mb-3 flex items-center gap-2">
-              <SparklesIcon className="h-5 w-5 text-[#EF9C82]" />
-              Suggested Improvements
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-heading font-semibold text-ink dark:text-white">Suggested Improvements</h2>
+              <button type="button" aria-label="More options" className="text-slate-400 hover:text-slate-600">
+                <EllipsisHorizontalIcon className="h-4 w-4" />
+              </button>
+            </div>
             <div className="space-y-1">
-              {displayData.suggestedImprovements && displayData.suggestedImprovements.length > 0 ? (
-                displayData.suggestedImprovements.map((s, i) => {
-                  const Icon = improvementIcons[i % improvementIcons.length]
-                  return (
-                    <button
-                      key={s.title}
-                      type="button"
-                      className="w-full flex items-center gap-3 rounded-xl p-2 -mx-2 text-left hover:bg-slate-50 dark:hover:bg-primary-700 transition-colors"
-                    >
-                      <div className="h-9 w-9 rounded-lg bg-[#1D4241]/10 text-[#1D4241] flex items-center justify-center shrink-0">
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-ink dark:text-white break-words">{s.title}</p>
-                        <p className="text-xs text-slate-500 break-words">{s.detail}</p>
-                      </div>
-                      <ChevronRightIcon className="h-4 w-4 text-slate-300 shrink-0" />
-                    </button>
-                  )
-                })
-              ) : (
-                <p className="text-sm text-slate-500 text-center py-2">No improvements needed - your idea is strong!</p>
-              )}
+              {displayData.suggestedImprovements.map((s, i) => {
+                const Icon = improvementIcons[i % improvementIcons.length]
+                return (
+                  <button
+                    key={s.title + i}
+                    type="button"
+                    className="w-full flex items-center gap-3 rounded-xl p-2 -mx-2 text-left hover:bg-slate-50 dark:hover:bg-primary-700 transition-colors"
+                  >
+                    <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-ink dark:text-white truncate">{s.title}</p>
+                      <p className="text-xs text-slate-500 truncate">{s.detail}</p>
+                    </div>
+                    <ChevronRightIcon className="h-4 w-4 text-slate-300 shrink-0" />
+                  </button>
+                )
+              })}
             </div>
           </div>
         </aside>

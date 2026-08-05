@@ -15,10 +15,12 @@ import {
   MicrophoneIcon,
   DocumentTextIcon,
   SpeakerWaveIcon,
+  StopIcon,
 } from '@heroicons/react/24/outline'
 import { mlAPI } from '../../services/api.js'
 import toast from 'react-hot-toast'
 
+// AI PERSONALITY PRESETS
 const AI_PERSONALITIES = [
   { 
     id: 'professional', 
@@ -61,6 +63,7 @@ const SUGGESTED_QUESTIONS = [
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 5)
 
 export default function Chatbot() {
+  // STATE
   const [conversations, setConversations] = useState(() => {
     const saved = localStorage.getItem('chatbot_conversations')
     if (saved) {
@@ -78,29 +81,34 @@ export default function Chatbot() {
   const [isLoading, setIsLoading] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   
+  // AI Personality
   const [selectedPersonality, setSelectedPersonality] = useState(AI_PERSONALITIES[0])
   const [showPersonalitySelector, setShowPersonalitySelector] = useState(false)
 
+  // Search
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchResults, setSearchResults] = useState([])
 
+  // Conversation Search
   const [convSearchQuery, setConvSearchQuery] = useState('')
   const [filteredConversations, setFilteredConversations] = useState([])
 
+  // Typing Indicator
   const [isTyping, setIsTyping] = useState(false)
 
-  // Voice & Speaking states
+  // ✅ VOICE CONVERSATION STATE
   const [isRecording, setIsRecording] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
+  const [isVoiceConversation, setIsVoiceConversation] = useState(false)
   const recognitionRef = useRef(null)
-
   const messagesEndRef = useRef(null)
   const searchInputRef = useRef(null)
 
   const currentConversation = conversations.find(c => c.id === selectedConversationId)
   const messages = currentConversation?.messages || []
 
+  // EFFECTS
   useEffect(() => {
     localStorage.setItem('chatbot_conversations', JSON.stringify(conversations))
   }, [conversations])
@@ -109,6 +117,7 @@ export default function Chatbot() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // Filter conversations for search
   useEffect(() => {
     if (convSearchQuery.trim()) {
       const query = convSearchQuery.toLowerCase()
@@ -122,148 +131,21 @@ export default function Chatbot() {
     }
   }, [convSearchQuery, conversations])
 
-  // ============================================================
-  // VOICE RECORDING
-  // ============================================================
-  const handleVoiceRecording = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!SpeechRecognition) {
-      toast.error('Voice recognition not supported')
-      return
-    }
-    if (isRecording) {
-      if (recognitionRef.current) {
-        try { recognitionRef.current.stop() } catch (e) {}
-      }
-      setIsRecording(false)
-      toast.success('Recording stopped')
-      return
-    }
-    navigator.mediaDevices.getUserMedia({ audio: true })
-      .then(() => {
-        setIsRecording(true)
-        toast.info('🎤 Listening... Speak now', { duration: 3000 })
-        const recognition = new SpeechRecognition()
-        recognition.lang = 'en-US'
-        recognition.continuous = false
-        recognition.interimResults = true
-        recognitionRef.current = recognition
-        let finalTranscript = ''
-        recognition.onstart = () => { console.log('Voice started') }
-        recognition.onresult = (event) => {
-          let interim = ''
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            const t = event.results[i][0].transcript
-            if (event.results[i].isFinal) { finalTranscript += t } else { interim += t }
-          }
-          if (finalTranscript) { setInput(finalTranscript); toast.success('Voice captured!') }
-          else if (interim) { setInput(interim + '...') }
-        }
-        recognition.onerror = () => { setIsRecording(false); toast.error('Voice failed') }
-        recognition.onend = () => {
-          setIsRecording(false)
-          if (finalTranscript) {
-            setTimeout(() => {
-              if (input.trim()) {
-                handleSend()
-              }
-            }, 500)
-          }
-        }
-        recognition.start()
-      })
-      .catch(() => { toast.error('Microphone access denied') })
-  }
-
-  // ============================================================
-  // SPEAK LAST RESPONSE
-  // ============================================================
-  const handleSpeak = () => {
-    const lastAI = [...messages].reverse().find(m => m.role === 'assistant')
-    if (!lastAI) {
-      toast.error('No AI message to speak')
-      return
-    }
-    if (!('speechSynthesis' in window)) {
-      toast.error('Text-to-speech not supported')
-      return
-    }
-    if (isSpeaking) {
-      window.speechSynthesis.cancel()
-      setIsSpeaking(false)
-      toast.success('Speech stopped')
-      return
-    }
-    const utterance = new SpeechSynthesisUtterance(lastAI.content)
-    utterance.lang = 'en-US'
-    utterance.rate = 1
-    utterance.pitch = 1
-    utterance.volume = 1
-    utterance.onstart = () => {
-      setIsSpeaking(true)
-      toast.info('🔊 Speaking...')
-    }
-    utterance.onend = () => {
-      setIsSpeaking(false)
-      toast.success('Speech complete')
-    }
-    utterance.onerror = () => {
-      setIsSpeaking(false)
-      toast.error('Speech failed')
-    }
-    window.speechSynthesis.speak(utterance)
-  }
-
-  // ============================================================
-  // COPY LAST RESPONSE
-  // ============================================================
-  const handleCopy = () => {
-    const lastAI = [...messages].reverse().find(m => m.role === 'assistant')
-    if (!lastAI) {
-      toast.error('No AI message to copy')
-      return
-    }
-    navigator.clipboard.writeText(lastAI.content)
-    toast.success('Copied to clipboard!')
-  }
-
-  // ============================================================
-  // PDF UPLOAD
-  // ============================================================
-  const handlePDFUpload = (e) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      toast.success(`📄 ${file.name} uploaded!`)
-      const fileMsg = {
-        id: generateId(),
-        role: 'user',
-        content: `📄 Uploaded: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      }
-      setConversations(prev => prev.map(conv => {
-        if (conv.id === selectedConversationId) {
-          return { ...conv, messages: [...conv.messages, fileMsg] }
-        }
-        return conv
-      }))
-    }
-    e.target.value = ''
-  }
-
-  const handleSend = async () => {
-    const userMessage = input.trim()
-    if (!userMessage) return
+  // CHAT FUNCTIONS
+  const handleSend = async (userMessage) => {
+    const message = userMessage || input.trim()
+    if (!message) return
 
     const userMsg = {
       id: generateId(),
       role: 'user',
-      content: userMessage,
+      content: message,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     }
 
     setConversations(prev => prev.map(conv => {
       if (conv.id === selectedConversationId) {
-        const newTitle = conv.messages.length === 0 ? userMessage.slice(0, 30) + (userMessage.length > 30 ? '...' : '') : conv.title
+        const newTitle = conv.messages.length === 0 ? message.slice(0, 30) + (message.length > 30 ? '...' : '') : conv.title
         return { ...conv, title: newTitle, messages: [...conv.messages, userMsg] }
       }
       return conv
@@ -274,7 +156,7 @@ export default function Chatbot() {
     setIsTyping(true)
 
     try {
-      const response = await mlAPI.chat(userMessage, {
+      const response = await mlAPI.chat(message, {
         personality: selectedPersonality.name,
         personalityPrompt: selectedPersonality.systemPrompt,
       })
@@ -294,6 +176,11 @@ export default function Chatbot() {
         return conv
       }))
 
+      // ✅ If voice conversation mode is on, speak the response
+      if (isVoiceConversation) {
+        speakResponse(reply)
+      }
+
     } catch (error) {
       console.error('Chat error:', error)
       toast.error('AI service unavailable')
@@ -303,6 +190,312 @@ export default function Chatbot() {
     }
   }
 
+  // ============================================================
+  // ✅ VOICE CONVERSATION FUNCTIONS
+  // ============================================================
+
+  // Start voice conversation
+  const startVoiceConversation = () => {
+    if (isVoiceConversation) {
+      // Stop voice conversation
+      setIsVoiceConversation(false)
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop() } catch (e) {}
+      }
+      window.speechSynthesis.cancel()
+      setIsRecording(false)
+      setIsSpeaking(false)
+      toast.success('🔇 Voice conversation ended')
+      return
+    }
+
+    // Check if browser supports speech recognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SpeechRecognition) {
+      toast.error('Voice recognition not supported. Please use Chrome, Edge, or Safari.')
+      return
+    }
+
+    // Request microphone permission
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(() => {
+        setIsVoiceConversation(true)
+        toast.success('🎙️ Voice conversation started! Speak to the AI.')
+        // Start listening after a short delay
+        setTimeout(() => startListening(), 500)
+      })
+      .catch(() => {
+        toast.error('Microphone access denied. Please allow microphone in browser settings.')
+      })
+  }
+
+  // Start listening for user speech
+  const startListening = () => {
+    if (!isVoiceConversation) return
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const recognition = new SpeechRecognition()
+    recognition.lang = 'en-US'
+    recognition.continuous = true
+    recognition.interimResults = true
+    recognition.maxAlternatives = 1
+    recognitionRef.current = recognition
+
+    let finalTranscript = ''
+
+    recognition.onstart = () => {
+      console.log('🎤 Listening...')
+      setIsRecording(true)
+      toast.info('🎤 Listening... Speak now', { duration: 2000 })
+    }
+
+    recognition.onresult = (event) => {
+      let interimTranscript = ''
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript
+        } else {
+          interimTranscript += transcript
+        }
+      }
+      // Show what user is saying
+      if (finalTranscript) {
+        setInput(finalTranscript)
+        // If there's a pause, send the message
+        clearTimeout(recognition.sendTimeout)
+        recognition.sendTimeout = setTimeout(() => {
+          if (finalTranscript.trim()) {
+            handleSend(finalTranscript.trim())
+            finalTranscript = ''
+            setInput('')
+          }
+        }, 1000)
+      } else if (interimTranscript) {
+        setInput(interimTranscript + '...')
+      }
+    }
+
+    recognition.onerror = (event) => {
+      console.error('Voice error:', event.error)
+      if (event.error === 'not-allowed') {
+        toast.error('Please allow microphone access')
+        setIsVoiceConversation(false)
+        setIsRecording(false)
+      } else if (event.error === 'no-speech') {
+        // Continue listening
+        console.log('No speech detected, continuing...')
+      }
+    }
+
+    recognition.onend = () => {
+      console.log('🎤 Listening ended')
+      setIsRecording(false)
+      // If voice conversation is still active, restart listening
+      if (isVoiceConversation) {
+        setTimeout(() => startListening(), 1000)
+      }
+    }
+
+    recognition.start()
+  }
+
+  // Speak AI response
+  const speakResponse = (text) => {
+    if (!('speechSynthesis' in window)) {
+      toast.error('Text-to-speech not supported')
+      return
+    }
+
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel()
+
+    const utterance = new SpeechSynthesisUtterance(text)
+    utterance.lang = 'en-US'
+    utterance.rate = 0.9
+    utterance.pitch = 1
+    utterance.volume = 1
+
+    // Split long text into shorter sentences for better speech
+    const sentences = text.match(/[^.!?]+[.!?]+/g) || [text]
+    let index = 0
+
+    utterance.onstart = () => {
+      setIsSpeaking(true)
+    }
+
+    utterance.onend = () => {
+      index++
+      if (index < sentences.length) {
+        // Speak next sentence
+        const nextUtterance = new SpeechSynthesisUtterance(sentences[index])
+        nextUtterance.lang = 'en-US'
+        nextUtterance.rate = 0.9
+        nextUtterance.pitch = 1
+        nextUtterance.volume = 1
+        nextUtterance.onstart = () => { setIsSpeaking(true) }
+        nextUtterance.onend = () => { 
+          if (index >= sentences.length - 1) {
+            setIsSpeaking(false)
+            // Resume listening after speaking
+            if (isVoiceConversation) {
+              setTimeout(() => {
+                if (!isRecording) {
+                  startListening()
+                }
+              }, 500)
+            }
+          }
+        }
+        window.speechSynthesis.speak(nextUtterance)
+      } else {
+        setIsSpeaking(false)
+        // Resume listening after speaking
+        if (isVoiceConversation) {
+          setTimeout(() => {
+            if (!isRecording) {
+              startListening()
+            }
+          }, 500)
+        }
+      }
+    }
+
+    utterance.onerror = () => {
+      setIsSpeaking(false)
+      if (isVoiceConversation) {
+        setTimeout(() => {
+          if (!isRecording) {
+            startListening()
+          }
+        }, 500)
+      }
+    }
+
+    window.speechSynthesis.speak(utterance)
+  }
+
+  // Single voice input (one-time)
+  const handleVoiceRecording = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SpeechRecognition) {
+      toast.error('Voice recognition not supported. Please use Chrome, Edge, or Safari.')
+      return
+    }
+
+    if (isRecording) {
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop() } catch (e) {}
+      }
+      setIsRecording(false)
+      toast.success('Recording stopped')
+      return
+    }
+
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(() => {
+        setIsRecording(true)
+        toast.info('🎤 Listening... Speak now', { duration: 3000 })
+
+        const recognition = new SpeechRecognition()
+        recognition.lang = 'en-US'
+        recognition.continuous = false
+        recognition.interimResults = true
+        recognition.maxAlternatives = 1
+        recognitionRef.current = recognition
+
+        let finalTranscript = ''
+
+        recognition.onstart = () => {
+          console.log('Voice recognition started')
+        }
+
+        recognition.onresult = (event) => {
+          let interimTranscript = ''
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript
+            if (event.results[i].isFinal) {
+              finalTranscript += transcript
+            } else {
+              interimTranscript += transcript
+            }
+          }
+          if (finalTranscript) {
+            setInput(finalTranscript)
+            toast.success('Voice captured!', { duration: 2000 })
+          } else if (interimTranscript) {
+            setInput(interimTranscript + '...')
+          }
+        }
+
+        recognition.onerror = (event) => {
+          console.error('Voice error:', event.error)
+          setIsRecording(false)
+          if (event.error === 'not-allowed') {
+            toast.error('Please allow microphone access')
+          } else if (event.error === 'no-speech') {
+            toast.error('No speech detected. Try again.')
+          } else {
+            toast.error('Voice error: ' + event.error)
+          }
+        }
+
+        recognition.onend = () => {
+          setIsRecording(false)
+          if (finalTranscript) {
+            setTimeout(() => {
+              if (input.trim()) {
+                handleSend(input)
+              }
+            }, 500)
+          }
+        }
+
+        recognition.start()
+      })
+      .catch(() => {
+        toast.error('Microphone access denied. Please allow microphone in browser settings.')
+      })
+  }
+
+  const handleSpeak = (text) => {
+    if (!('speechSynthesis' in window)) {
+      toast.error('Text-to-speech not supported')
+      return
+    }
+
+    if (isSpeaking) {
+      window.speechSynthesis.cancel()
+      setIsSpeaking(false)
+      toast.success('Speech stopped')
+      return
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text)
+    utterance.lang = 'en-US'
+    utterance.rate = 1
+    utterance.pitch = 1
+    utterance.volume = 1
+
+    utterance.onstart = () => {
+      setIsSpeaking(true)
+      toast.info('🔊 Speaking...')
+    }
+
+    utterance.onend = () => {
+      setIsSpeaking(false)
+      toast.success('Speech complete')
+    }
+
+    utterance.onerror = () => {
+      setIsSpeaking(false)
+      toast.error('Speech failed')
+    }
+
+    window.speechSynthesis.speak(utterance)
+  }
+
+  // Other functions
   const handleNewConversation = () => {
     const newConv = { id: generateId(), title: 'New Conversation', subtitle: 'Just now', messages: [] }
     setConversations(prev => [newConv, ...prev])
@@ -378,7 +571,7 @@ export default function Chatbot() {
 
   const handleSuggestedQuestion = (question) => {
     setInput(question)
-    setTimeout(() => handleSend(), 100)
+    setTimeout(() => handleSend(question), 100)
   }
 
   const handleKeyPress = (e) => {
@@ -491,14 +684,42 @@ export default function Chatbot() {
                   <span className="text-xs text-[#1D4241] font-medium bg-[#1D4241]/10 px-2 py-0.5 rounded-full">
                     {selectedPersonality.name}
                   </span>
+                  {isVoiceConversation && (
+                    <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded-full animate-pulse">
+                      🎤 Voice Mode
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* ✅ Speak Button */}
+            {/* ✅ Voice Conversation Toggle Button */}
             <button
-              onClick={handleSpeak}
+              onClick={startVoiceConversation}
+              className={`h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center ${
+                isVoiceConversation 
+                  ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/30' 
+                  : 'text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5'
+              }`}
+              title={isVoiceConversation ? 'Stop voice conversation' : 'Start voice conversation'}
+            >
+              <MicrophoneIcon className={`h-4.5 w-4.5 ${isVoiceConversation ? 'animate-pulse' : ''}`} />
+            </button>
+
+            <button
+              onClick={() => setIsSearchOpen(!isSearchOpen)}
+              className="h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5"
+            >
+              <MagnifyingGlassIcon className="h-4.5 w-4.5" />
+            </button>
+
+            <button
+              onClick={() => {
+                const lastAI = [...messages].reverse().find(m => m.role === 'assistant')
+                if (lastAI) handleSpeak(lastAI.content)
+                else toast.error('No AI message to speak')
+              }}
               className={`h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center ${
                 isSpeaking 
                   ? 'text-[#EF9C82] bg-[#EF9C82]/10 animate-pulse' 
@@ -507,24 +728,6 @@ export default function Chatbot() {
               title="Read last response aloud"
             >
               <SpeakerWaveIcon className={`h-4.5 w-4.5 ${isSpeaking ? 'animate-pulse' : ''}`} />
-            </button>
-
-            {/* ✅ Copy Button */}
-            <button
-              onClick={handleCopy}
-              className="h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5"
-              title="Copy last response"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4.5 w-4.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375h-7.5a1.125 1.125 0 0 1-1.125-1.125v-9.25m12.75 11.625v-11.5a1.125 1.125 0 0 0-1.125-1.125H9.375" />
-              </svg>
-            </button>
-
-            <button
-              onClick={() => setIsSearchOpen(!isSearchOpen)}
-              className="h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5"
-            >
-              <MagnifyingGlassIcon className="h-4.5 w-4.5" />
             </button>
 
             <button
@@ -602,6 +805,15 @@ export default function Chatbot() {
                   </button>
                 ))}
               </div>
+              <div className="mt-4">
+                <button
+                  onClick={startVoiceConversation}
+                  className="px-6 py-3 rounded-2xl bg-gradient-to-r from-[#1D4241] to-[#163535] text-white hover:shadow-xl hover:shadow-[#1D4241]/20 hover:scale-[1.02] transition-all duration-300 flex items-center gap-2"
+                >
+                  <MicrophoneIcon className="h-5 w-5" />
+                  <span>Start Voice Conversation</span>
+                </button>
+              </div>
             </div>
           ) : (
             <>
@@ -650,41 +862,45 @@ export default function Chatbot() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input with Voice, PDF, Send */}
+        {/* Input */}
         <div className="p-4 border-t border-white/30 bg-white/40 backdrop-blur-sm">
           <div className="flex items-center gap-3">
-            {/* ✅ Voice Button - LEFT SIDE */}
+            {/* Voice Conversation Toggle */}
+            <button
+              onClick={startVoiceConversation}
+              className={`p-3 rounded-2xl transition-all duration-300 flex items-center justify-center ${
+                isVoiceConversation 
+                  ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/30' 
+                  : 'text-[#1D4241] hover:bg-[#1D4241]/5'
+              }`}
+              title={isVoiceConversation ? 'Stop voice conversation' : 'Start voice conversation'}
+            >
+              <MicrophoneIcon className={`h-5 w-5 ${isVoiceConversation ? 'animate-pulse' : ''}`} />
+            </button>
+
+            {/* Single Voice Input */}
             <button
               onClick={handleVoiceRecording}
               className={`p-3 rounded-2xl transition-all duration-300 flex items-center justify-center ${
-                isRecording 
+                isRecording && !isVoiceConversation
                   ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/30' 
                   : 'text-[#1D4241] hover:bg-[#1D4241]/5'
               }`}
               title="Voice input"
+              disabled={isVoiceConversation}
             >
-              <MicrophoneIcon className={`h-5 w-5 ${isRecording ? 'animate-pulse' : ''}`} />
+              <MicrophoneIcon className={`h-5 w-5 ${isRecording && !isVoiceConversation ? 'animate-pulse' : ''}`} />
             </button>
-
-            {/* ✅ PDF Upload Button */}
-            <button
-              onClick={() => document.getElementById('pdf-upload-chatbot').click()}
-              className="p-3 rounded-2xl transition-all duration-300 flex items-center justify-center text-[#1D4241] hover:bg-[#1D4241]/5"
-              title="Upload PDF"
-            >
-              <DocumentTextIcon className="h-5 w-5" />
-            </button>
-            <input id="pdf-upload-chatbot" type="file" accept=".pdf" className="hidden" onChange={handlePDFUpload} />
 
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={isRecording ? '🎤 Listening...' : 'Prompt input...'}
+              placeholder={isVoiceConversation ? '🎙️ Voice conversation mode...' : isRecording ? '🎤 Listening...' : 'Prompt input...'}
               className={`flex-1 px-5 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/50 rounded-2xl focus:ring-2 focus:ring-[#1D4241]/30 focus:border-transparent outline-none text-sm transition-all duration-300 placeholder:text-slate-400 shadow-sm ${
-                isRecording ? 'border-red-300 ring-2 ring-red-300/50' : ''
-              }`}
+                isRecording && !isVoiceConversation ? 'border-red-300 ring-2 ring-red-300/50' : ''
+              } ${isVoiceConversation ? 'border-green-300 ring-2 ring-green-300/50' : ''}`}
               disabled={isLoading || isTyping || isRecording}
             />
 
@@ -701,11 +917,17 @@ export default function Chatbot() {
             </button>
           </div>
 
-          {/* Recording indicator */}
-          {isRecording && (
+          {/* Status indicators */}
+          {isVoiceConversation && (
+            <div className="mt-2 text-xs text-green-600 flex items-center gap-2 animate-pulse">
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-ping"></span>
+              🎙️ Voice conversation active — just speak!
+            </div>
+          )}
+          {isRecording && !isVoiceConversation && (
             <div className="mt-2 text-xs text-red-500 flex items-center gap-2 animate-pulse">
               <span className="w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
-              Recording... Speak now
+              🎤 Recording... Speak now
             </div>
           )}
           {isSpeaking && (

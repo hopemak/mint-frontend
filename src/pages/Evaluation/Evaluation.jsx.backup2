@@ -1,0 +1,541 @@
+import React, { useState } from 'react'
+import {
+  ResponsiveContainer,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+} from 'recharts'
+import {
+  HandThumbUpIcon,
+  HandThumbDownIcon,
+  MegaphoneIcon,
+  ExclamationTriangleIcon,
+  InformationCircleIcon,
+  ChatBubbleLeftIcon,
+  PaperAirplaneIcon,
+  EllipsisHorizontalIcon,
+  ChevronRightIcon,
+  Squares2X2Icon,
+  AdjustmentsHorizontalIcon,
+  SparklesIcon,
+  ArrowTrendingUpIcon,
+} from '@heroicons/react/24/outline'
+import { PageHeader, LoadingBlock, ErrorNotice } from '../../components/ui.jsx'
+import { useApiData } from '../../services/useApiData.js'
+import { evaluation as sampleEvaluation } from '../../data/sampleData.js'
+import { mlAPI } from '../../services/api.js'
+import toast from 'react-hot-toast'
+
+const riskColor = { Low: 'text-emerald-600', Medium: 'text-amber-600', High: 'text-red-600' }
+
+const scoreLabels = [
+  ['innovation', 'Innovation Score'],
+  ['feasibility', 'Feasibility'],
+  ['marketPotential', 'Market Potential'],
+  ['technicalComplexity', 'Technical Complexity'],
+  ['socialImpact', 'Social Impact'],
+  ['financialViability', 'Financial Viability'],
+]
+
+function scoreTone(score) {
+  if (score >= 90) return { label: 'Success', bar: 'bg-emerald-500', text: 'text-emerald-600' }
+  if (score >= 75) return { label: 'Primary', bar: 'bg-[#1D4241]', text: 'text-[#1D4241]' }
+  if (score >= 60) return { label: 'Warning', bar: 'bg-amber-500', text: 'text-amber-600' }
+  return { label: 'Critical', bar: 'bg-red-500', text: 'text-red-600' }
+}
+
+const aiSuggestions = [
+  'Your idea scores well on innovation and market potential — consider tightening the go-to-market plan before submission.',
+  'Adding a competitor comparison could strengthen the feasibility score further.',
+]
+
+const improvementIcons = [Squares2X2Icon, AdjustmentsHorizontalIcon, SparklesIcon, ArrowTrendingUpIcon]
+
+export default function Evaluation() {
+  const [evaluationData, setEvaluationData] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [isFallback, setIsFallback] = useState(false)
+  const [chatDraft, setChatDraft] = useState('')
+  
+  // ✅ MATCHES BACKEND EXACTLY
+  const [formData, setFormData] = useState({
+    title: 'AgriSense AI - Precision Agriculture',
+    description: 'AI-powered platform for Ethiopian farmers using computer vision and IoT sensors for crop disease detection with 95% accuracy. Provides real-time SMS alerts.',
+    category: 'Agriculture',
+    industry: 'AI/ML',
+    target_market: '5 million smallholder farmers in Ethiopia, 1 million with smartphone access',
+    business_model: 'Freemium SaaS - Premium at $5/month, Enterprise at $200/month',
+    innovation_level: 8,
+    market_potential: 90,
+    feasibility: 78,
+    financial_plan: 72,
+    social_impact: 95,
+    team_capability: 75,
+    overall_risk: 25,
+  })
+
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    setFormData({ ...formData, [name]: value })
+  }
+
+  const handleNew = () => {
+    setFormData({
+      title: '',
+      description: '',
+      category: '',
+      industry: '',
+      target_market: '',
+      business_model: '',
+      innovation_level: 5,
+      market_potential: 70,
+      feasibility: 70,
+      financial_plan: 70,
+      social_impact: 70,
+      team_capability: 70,
+      overall_risk: 40,
+    })
+    setEvaluationData(null)
+    setIsFallback(false)
+    toast.success('Cleared for new idea')
+  }
+
+  const handlePreview = async () => {
+    if (!formData.title || !formData.description) {
+      toast.error('Please enter idea title and description first')
+      return
+    }
+
+    setLoading(true)
+    try {
+      // ✅ EXACT BACKEND FORMAT
+      const response = await mlAPI.evaluate({
+        title: formData.title,
+        description: formData.description,
+        category: formData.category || 'General',
+        industry: formData.industry || 'Technology',
+        target_market: formData.target_market || '',
+        business_model: formData.business_model || '',
+        innovation_score: formData.innovation_level * 10,
+        market_potential: parseInt(formData.market_potential),
+        feasibility: parseInt(formData.feasibility),
+        financial_plan: parseInt(formData.financial_plan),
+        social_impact: parseInt(formData.social_impact),
+        team_capability: parseInt(formData.team_capability),
+        overall_risk: parseInt(formData.overall_risk),
+      })
+
+      if (response.data?.success) {
+        const data = response.data.data
+        setEvaluationData({
+          overallScore: data.overall_score || 80,
+          rating: data.rating || 'Good',
+          scores: {
+            innovation: data.innovation_score || 70,
+            feasibility: data.feasibility || 70,
+            marketPotential: data.market_potential || 70,
+            technicalComplexity: data.technical_complexity || 50,
+            socialImpact: data.social_impact || 70,
+            financialViability: data.financial_viability || 70,
+          },
+          radar: [
+            { subject: 'Innovation', value: data.innovation_score || 70 },
+            { subject: 'Feasibility', value: data.feasibility || 70 },
+            { subject: 'Market', value: data.market_potential || 70 },
+            { subject: 'Technical', value: data.technical_complexity || 50 },
+            { subject: 'Social', value: data.social_impact || 70 },
+            { subject: 'Financial', value: data.financial_viability || 70 },
+          ],
+          risks: [
+            { name: 'Technological', level: data.risk_score > 50 ? 'Medium' : 'Low' },
+            { name: 'Market Acceptance', level: data.market_potential > 70 ? 'Low' : 'Medium' },
+            { name: 'Regulatory', level: 'High' },
+          ],
+          swot: data.swot_analysis || {
+            strengths: ['Strong technical founding team', 'Clear early customer traction'],
+            weaknesses: ['Limited go-to-market budget', 'Single-market dependency'],
+            opportunities: ['Growing regional demand', 'Government grant alignment'],
+            threats: ['New entrants with more capital', 'Regulatory delays possible'],
+          },
+          approvalStatus: data.approval_status || 'Under Review',
+          suggestedImprovements: [
+            { title: 'Refine user interface', detail: 'Simplify onboarding to reduce drop-off.' },
+            { title: 'Target a specific niche', detail: 'Narrow initial launch to one region.' },
+            { title: 'Optimize unit economics', detail: 'Reduce customer acquisition cost.' },
+          ],
+          feedback: data.feedback || 'Your idea shows strong potential.',
+        })
+        setIsFallback(false)
+        toast.success('Evaluation complete!')
+      } else {
+        toast.error('Evaluation failed')
+      }
+    } catch (error) {
+      console.error('Evaluation error:', error)
+      setEvaluationData(sampleEvaluation)
+      setIsFallback(true)
+      toast.error('Using sample data')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const data = evaluationData || sampleEvaluation
+  const showFallback = isFallback || !evaluationData
+
+  if (loading) return <LoadingBlock label="Running AI evaluation..." />
+
+  return (
+    <div>
+      <PageHeader
+        eyebrow="AI Evaluation"
+        title="AI Idea Evaluation"
+        action={
+          <div className="flex items-center gap-2">
+            <button 
+              type="button" 
+              className="btn-outline" 
+              onClick={handlePreview} 
+              disabled={loading}
+            >
+              {loading ? 'Evaluating...' : 'Preview'}
+            </button>
+            <button type="button" className="btn-primary" onClick={handleNew}>
+              + New
+            </button>
+          </div>
+        }
+      />
+      {showFallback && <ErrorNotice message="Couldn't reach the server. Showing sample data instead." />}
+
+      {/* INPUT FORM - MATCHES BACKEND */}
+      <div className="card p-4 mb-6 bg-gray-50 border border-gray-200">
+        <h3 className="font-medium text-gray-700 mb-3">Idea Details</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+            <input
+              type="text"
+              name="title"
+              value={formData.title}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1D4241] focus:border-transparent outline-none"
+              placeholder="Enter your idea title"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1D4241] focus:border-transparent outline-none"
+              rows="3"
+              placeholder="Describe your idea in detail..."
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+            <select
+              name="category"
+              value={formData.category}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1D4241] focus:border-transparent outline-none"
+            >
+              <option value="">Select Category</option>
+              <option value="Agriculture">Agriculture</option>
+              <option value="Healthcare">Healthcare</option>
+              <option value="FinTech">FinTech</option>
+              <option value="EdTech">EdTech</option>
+              <option value="CleanTech">CleanTech</option>
+              <option value="AI/ML">AI/ML</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+            <select
+              name="industry"
+              value={formData.industry}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1D4241] focus:border-transparent outline-none"
+            >
+              <option value="">Select Industry</option>
+              <option value="Technology">Technology</option>
+              <option value="Healthcare">Healthcare</option>
+              <option value="Finance">Finance</option>
+              <option value="Agriculture">Agriculture</option>
+              <option value="Education">Education</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Target Market</label>
+            <input
+              type="text"
+              name="target_market"
+              value={formData.target_market}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1D4241] focus:border-transparent outline-none"
+              placeholder="Who is this for?"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Business Model</label>
+            <input
+              type="text"
+              name="business_model"
+              value={formData.business_model}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1D4241] focus:border-transparent outline-none"
+              placeholder="How do you make money?"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Innovation Level (1-10)</label>
+            <input
+              type="range"
+              name="innovation_level"
+              min="1"
+              max="10"
+              value={formData.innovation_level}
+              onChange={handleChange}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>Low</span>
+              <span className="font-medium text-[#1D4241]">{formData.innovation_level}/10</span>
+              <span>High</span>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Market Potential (0-100)</label>
+            <input
+              type="number"
+              name="market_potential"
+              value={formData.market_potential}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1D4241] focus:border-transparent outline-none"
+              min="0"
+              max="100"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Feasibility (0-100)</label>
+            <input
+              type="number"
+              name="feasibility"
+              value={formData.feasibility}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1D4241] focus:border-transparent outline-none"
+              min="0"
+              max="100"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Social Impact (0-100)</label>
+            <input
+              type="number"
+              name="social_impact"
+              value={formData.social_impact}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1D4241] focus:border-transparent outline-none"
+              min="0"
+              max="100"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Financial Plan (0-100)</label>
+            <input
+              type="number"
+              name="financial_plan"
+              value={formData.financial_plan}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1D4241] focus:border-transparent outline-none"
+              min="0"
+              max="100"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Team Capability (0-100)</label>
+            <input
+              type="number"
+              name="team_capability"
+              value={formData.team_capability}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1D4241] focus:border-transparent outline-none"
+              min="0"
+              max="100"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Risk Score (0-100)</label>
+            <input
+              type="number"
+              name="overall_risk"
+              value={formData.overall_risk}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1D4241] focus:border-transparent outline-none"
+              min="0"
+              max="100"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* RESULTS - SAME AS YOUR UI/UX */}
+      <div className="card p-6 mb-6 bg-gradient-to-r from-[#1D4241] via-[#1D4241]/90 to-[#EF9C82] text-white">
+        <p className="text-sm opacity-80 mb-1 flex items-center gap-1.5">
+          AI Overall Score
+          <InformationCircleIcon className="h-4 w-4 opacity-80" />
+        </p>
+        <div className="flex items-center gap-4">
+          <span className="font-heading text-5xl font-bold">{data.overallScore}</span>
+          <span className="badge bg-white/20 text-white">{data.rating}</span>
+        </div>
+      </div>
+
+      <div className="grid sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        {scoreLabels.map(([key, label]) => {
+          const tone = scoreTone(data.scores[key])
+          return (
+            <div key={key} className="card p-4">
+              <p className="text-xs text-slate-500 mb-1">{label}</p>
+              <p className="font-heading text-2xl font-semibold text-ink dark:text-white mb-2">{data.scores[key]}</p>
+              <div className="h-1.5 rounded-full bg-slate-100 dark:bg-primary-700 overflow-hidden mb-1.5">
+                <div className={`h-full ${tone.bar}`} style={{ width: `${data.scores[key]}%` }} />
+              </div>
+              <span className={`text-xs font-medium ${tone.text}`}>{tone.label}</span>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="grid lg:grid-cols-4 gap-6">
+        <div className="lg:col-span-3">
+          <div className="grid lg:grid-cols-3 gap-4 mb-6">
+            <div className="card p-5">
+              <h2 className="font-heading font-semibold text-ink dark:text-white mb-2">Multi-Dimensional Analysis</h2>
+              <p className="text-sm text-slate-500 mb-2">Visualizes the overall balance of this idea.</p>
+              <ResponsiveContainer width="100%" height={260}>
+                <RadarChart data={data.radar}>
+                  <PolarGrid stroke="#E2E8F0" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11 }} />
+                  <PolarRadiusAxis tick={false} axisLine={false} />
+                  <Radar dataKey="value" stroke="#1D4241" fill="#1D4241" fillOpacity={0.35} />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="card p-5">
+              <h2 className="font-heading font-semibold text-ink dark:text-white">Risk Analysis</h2>
+              <p className="text-sm text-slate-500 mb-4">Identified risks with:</p>
+              <div className="space-y-3">
+                {data.risks.map((r) => (
+                  <div key={r.name} className="rounded-xl border border-slate-100 dark:border-primary-700 p-3.5">
+                    <p className="text-sm font-medium text-ink dark:text-white">{r.name}</p>
+                    <span className={`text-xs font-medium ${riskColor[r.level]}`}>{r.level} Risk</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="card p-5">
+              <h2 className="font-heading font-semibold text-ink dark:text-white mb-4">SWOT Analysis</h2>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-3.5">
+                  <p className="font-medium text-emerald-700 mb-1"><HandThumbUpIcon className="h-4 w-4 inline mr-1" /> Strengths</p>
+                  <ul className="text-emerald-700/80 space-y-1 list-disc list-inside">
+                    {data.swot.strengths.map((s) => <li key={s}>{s}</li>)}
+                  </ul>
+                </div>
+                <div className="rounded-xl bg-red-50 border border-red-100 p-3.5">
+                  <p className="font-medium text-red-600 mb-1"><HandThumbDownIcon className="h-4 w-4 inline mr-1" /> Weaknesses</p>
+                  <ul className="text-red-600/80 space-y-1 list-disc list-inside">
+                    {data.swot.weaknesses.map((s) => <li key={s}>{s}</li>)}
+                  </ul>
+                </div>
+                <div className="rounded-xl bg-[#1D4241]/10 border border-[#1D4241]/20 p-3.5">
+                  <p className="font-medium text-[#1D4241] mb-1"><MegaphoneIcon className="h-4 w-4 inline mr-1" /> Opportunities</p>
+                  <ul className="text-[#1D4241]/80 space-y-1 list-disc list-inside">
+                    {data.swot.opportunities.map((s) => <li key={s}>{s}</li>)}
+                  </ul>
+                </div>
+                <div className="rounded-xl bg-[#EF9C82]/10 border border-[#EF9C82]/30 p-3.5">
+                  <p className="font-medium text-[#EF9C82] mb-1"><ExclamationTriangleIcon className="h-4 w-4 inline mr-1" /> Threats</p>
+                  <ul className="text-[#EF9C82]/80 space-y-1 list-disc list-inside">
+                    {data.swot.threats.map((s) => <li key={s}>{s}</li>)}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card p-5 flex items-center justify-between">
+            <h2 className="font-heading font-semibold text-ink dark:text-white">Approval Status</h2>
+            <span className="badge bg-emerald-100 text-emerald-700 text-sm">{data.approvalStatus}</span>
+          </div>
+        </div>
+
+        <aside className="lg:col-span-1 space-y-6 h-fit lg:sticky lg:top-20">
+          <div className="card p-5">
+            <h2 className="font-heading font-semibold text-ink dark:text-white mb-3">AI Generated Feedback</h2>
+            <div className="space-y-2.5 mb-3">
+              {aiSuggestions.map((msg) => (
+                <div key={msg} className="flex gap-2">
+                  <div className="h-6 w-6 rounded-full bg-[#1D4241] text-white flex items-center justify-center shrink-0">
+                    <ChatBubbleLeftIcon className="h-3.5 w-3.5" />
+                  </div>
+                  <p className="rounded-xl bg-slate-50 p-2.5 text-xs text-slate-600">{msg}</p>
+                </div>
+              ))}
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                setChatDraft('')
+                toast.success('Message sent!')
+              }}
+              className="flex items-center gap-2"
+            >
+              <input
+                value={chatDraft}
+                onChange={(e) => setChatDraft(e.target.value)}
+                placeholder="Write a message..."
+                className="input flex-1 py-2 text-sm"
+              />
+              <button type="submit" className="btn-primary p-2.5">
+                <PaperAirplaneIcon className="h-4 w-4" />
+              </button>
+            </form>
+          </div>
+
+          <div className="card p-5">
+            <h2 className="font-heading font-semibold text-ink dark:text-white mb-3">Suggested Improvements</h2>
+            <div className="space-y-1">
+              {data.suggestedImprovements.map((s, i) => {
+                const Icon = improvementIcons[i % improvementIcons.length]
+                return (
+                  <button
+                    key={s.title}
+                    type="button"
+                    className="w-full flex items-center gap-3 rounded-xl p-2 -mx-2 text-left hover:bg-slate-50 transition-colors"
+                  >
+                    <div className="h-9 w-9 rounded-lg bg-[#1D4241]/10 text-[#1D4241] flex items-center justify-center shrink-0">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-ink truncate">{s.title}</p>
+                      <p className="text-xs text-slate-500 truncate">{s.detail}</p>
+                    </div>
+                    <ChevronRightIcon className="h-4 w-4 text-slate-300 shrink-0" />
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  )
+}

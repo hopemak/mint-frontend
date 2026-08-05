@@ -14,6 +14,7 @@ import {
   SparklesIcon,
   CheckCircleIcon,
   LightBulbIcon,
+  PrinterIcon,
 } from '@heroicons/react/24/outline'
 import { PageHeader } from '../../components/ui.jsx'
 import Gauge from '../../components/Gauge.jsx'
@@ -23,6 +24,7 @@ const CATEGORIES = ['Agriculture', 'Healthcare', 'FinTech', 'EdTech', 'CleanTech
 const INDUSTRIES = ['Technology', 'Healthcare', 'Finance', 'Agriculture', 'Education']
 const BUSINESS_MODELS = ['Subscription', 'Freemium', 'Marketplace', 'Licensing', 'Transaction Fee']
 
+// ✅ PDF Export with html2canvas and jspdf
 const exportToPDF = async (element, filename = 'evaluation_report.pdf') => {
   try {
     const html2canvas = (await import('html2canvas')).default
@@ -33,7 +35,8 @@ const exportToPDF = async (element, filename = 'evaluation_report.pdf') => {
       useCORS: true,
       backgroundColor: '#ffffff',
       logging: false,
-      width: 900,
+      width: 800,
+      height: element.scrollHeight,
     })
     
     const imgData = canvas.toDataURL('image/png')
@@ -56,9 +59,9 @@ const exportToPDF = async (element, filename = 'evaluation_report.pdf') => {
     }
     
     pdf.save(filename)
-    toast.success('✅ Report exported successfully!')
+    toast.success('✅ PDF exported successfully!')
   } catch (error) {
-    console.error('Export error:', error)
+    console.error('PDF export error:', error)
     toast.error('Failed to export PDF')
   }
 }
@@ -82,7 +85,7 @@ export default function IdeaSubmission() {
   const [uploadedFiles, setUploadedFiles] = useState([])
   const [isEvaluating, setIsEvaluating] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
-  const [activeTab, setActiveTab] = useState('report')
+  const [activeTab, setActiveTab] = useState('overview')
   
   const reportRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -91,6 +94,7 @@ export default function IdeaSubmission() {
   const title = watch('title')
   const problem = watch('problem')
 
+  // Auto-calculate scores
   useEffect(() => {
     if (title || problem) {
       const quality = Math.min(95, 40 + (title?.length || 0) * 2 + (problem?.length || 0) * 0.5)
@@ -119,6 +123,9 @@ export default function IdeaSubmission() {
     toast.success('File removed')
   }
 
+  // ============================================================
+  // ✅ MAIN SUBMIT FUNCTION
+  // ============================================================
   const onSubmit = async (data) => {
     setEvaluationResult(null)
     
@@ -147,6 +154,8 @@ export default function IdeaSubmission() {
         scores: scores,
         documents: uploadedFiles.map(f => f.name)
       }
+
+      console.log('📤 Submitting payload:', payload)
 
       const response = await api.post('/api/ideas', payload)
       
@@ -182,14 +191,14 @@ export default function IdeaSubmission() {
               threats: ['Competitors', 'Regulatory changes']
             },
             recommendations: result.recommendations || [],
-            detailedFeedback: generateCleanReport(result, data),
+            detailedFeedback: generateDetailedFeedback(result),
             ideaTitle: data.title,
             ideaProblem: data.problem,
             ideaSolution: data.solution,
             timestamp: new Date().toLocaleString(),
             approval_status: result.approval_status || 'Under Review',
           })
-          setActiveTab('report')
+          setActiveTab('overview')
           toast.success('✅ Evaluation complete!')
         } else {
           toast.error('Evaluation failed')
@@ -237,7 +246,7 @@ export default function IdeaSubmission() {
         { priority: 'High', title: 'Increase Innovation', description: 'Add unique features to differentiate' },
         { priority: 'Medium', title: 'Strengthen Feasibility', description: 'Break down implementation into phases' },
       ],
-      detailedFeedback: generateCleanReport({ overall_score: overall, ...scores }, data),
+      detailedFeedback: generateDetailedFeedback({ overall_score: overall, ...scores }),
       ideaTitle: data.title,
       ideaProblem: data.problem,
       ideaSolution: data.solution,
@@ -247,9 +256,9 @@ export default function IdeaSubmission() {
   }
 
   // ============================================================
-  // ✅ CLEAN KIMI-STYLE REPORT - No rectangles, professional
+  // ✅ GENERATE DETAILED FEEDBACK (3-4 PAGES OF CONTENT)
   // ============================================================
-  function generateCleanReport(data, formData) {
+  function generateDetailedFeedback(data) {
     const s = {
       innovation: data.innovation_score || 70,
       feasibility: data.feasibility || 70,
@@ -261,153 +270,83 @@ export default function IdeaSubmission() {
     
     const overall = data.overall_score || 80
     const rating = data.rating || 'Good'
-    const title = formData?.title || 'Innovation Idea'
-    const problem = formData?.problem || 'Problem statement'
-    const solution = formData?.solution || 'Solution description'
-    const date = new Date().toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-    
-    const readiness = Math.round((s.innovation + s.feasibility + s.market + s.financial) / 4)
     
     return `
-📋 INNOVATION EVALUATION REPORT
-==============================
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    📊 INNOVATION EVALUATION REPORT                         ║
+║                      ${new Date().toLocaleDateString()}                        ║
+╚══════════════════════════════════════════════════════════════════════════════╝
 
-Generated: ${date}
-Report ID: EVAL-${Date.now().toString(36).toUpperCase()}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📈 OVERALL SCORE: ${overall}% (${rating})
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-─────────────────────────────────────────────────────────────────────────────
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           DIMENSION SCORES                                 │
+├───────────────┬─────────────┬──────────────────────────────────────────────┤
+│ Innovation    │ ${s.innovation}%        │ ${s.innovation >= 75 ? '✅ Strong' : '⚠️ Needs Improvement'}       │
+│ Feasibility   │ ${s.feasibility}%        │ ${s.feasibility >= 75 ? '✅ Strong' : '⚠️ Needs Improvement'}       │
+│ Market        │ ${s.market}%        │ ${s.market >= 75 ? '✅ Strong' : '⚠️ Needs Improvement'}       │
+│ Technical     │ ${s.technical}%        │ ${s.technical >= 75 ? '✅ Strong' : '⚠️ Needs Improvement'}       │
+│ Social Impact │ ${s.social}%        │ ${s.social >= 75 ? '✅ Strong' : '⚠️ Needs Improvement'}       │
+│ Financial     │ ${s.financial}%        │ ${s.financial >= 75 ? '✅ Strong' : '⚠️ Needs Improvement'}       │
+└───────────────┴─────────────┴──────────────────────────────────────────────┘
 
-IDEA OVERVIEW
-─────────────────────────────────────────────────────────────────────────────
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 SWOT ANALYSIS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Title: ${title}
-Category: ${formData?.category || 'General'}
-Industry: ${formData?.industry || 'Technology'}
-Innovation Level: ${formData?.innovation_level || 5}/10
+✅ STRENGTHS
+${data.swot_analysis?.strengths?.map(s => `   • ${s}`).join('\n') || '   • Not available'}
 
-Problem Statement:
-${problem}
+❌ WEAKNESSES
+${data.swot_analysis?.weaknesses?.map(s => `   • ${s}`).join('\n') || '   • Not available'}
 
-Proposed Solution:
-${solution}
+📈 OPPORTUNITIES
+${data.swot_analysis?.opportunities?.map(s => `   • ${s}`).join('\n') || '   • Not available'}
 
-Target Market: ${formData?.target_market || 'Not specified'}
-Business Model: ${formData?.business_model || 'Not specified'}
+⚠️ THREATS
+${data.swot_analysis?.threats?.map(s => `   • ${s}`).join('\n') || '   • Not available'}
 
-─────────────────────────────────────────────────────────────────────────────
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🛡️ RISK ANALYSIS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-EXECUTIVE SUMMARY
-─────────────────────────────────────────────────────────────────────────────
+${(data.risk_analysis || data.risks || []).map(r => 
+  `   • ${r.name}: ${r.level} Risk`
+).join('\n') || '   • No risk data available'}
 
-Overall Score: ${overall}% (${rating})
-Status: ${data.approval_status || 'Under Review'}
-Readiness: ${readiness}%
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💡 RECOMMENDATIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Key Strengths:
-${s.innovation >= 75 ? `  • Innovation: ${s.innovation}% - Strong creative thinking` : `  • Innovation: ${s.innovation}% - Moderate, can be improved`}
-${s.market >= 75 ? `  • Market Potential: ${s.market}% - Strong opportunity` : `  • Market Potential: ${s.market}% - Moderate, needs validation`}
-${s.social >= 75 ? `  • Social Impact: ${s.social}% - Significant positive impact` : `  • Social Impact: ${s.social}% - Moderate, can be enhanced`}
+${(data.recommendations || []).map((rec, i) => 
+  `   ${i+1}. [${rec.priority || 'Medium'}] ${rec.title}\n      ${rec.description || ''}`
+).join('\n\n') || '   • No recommendations available'}
 
-Key Weaknesses:
-${s.feasibility < 75 ? `  • Feasibility: ${s.feasibility}% - Needs strengthening` : `  • Feasibility: ${s.feasibility}% - Good`}
-${s.financial < 75 ? `  • Financial Viability: ${s.financial}% - Needs improvement` : `  • Financial Viability: ${s.financial}% - Good`}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-─────────────────────────────────────────────────────────────────────────────
+   Overall Score: ${overall}% (${rating})
+   Approval Status: ${data.approval_status || 'Under Review'}
+   Evaluation Date: ${new Date().toLocaleString()}
 
-DETAILED SCORE ANALYSIS
-─────────────────────────────────────────────────────────────────────────────
+   RECOMMENDED ACTIONS:
+${(data.recommendations || []).slice(0, 3).map((rec, i) => 
+  `   ${i+1}. ${rec.title}`
+).join('\n') || '   • Continue developing your idea'}
 
-Innovation: ${s.innovation}%
-Feasibility: ${s.feasibility}%
-Market Potential: ${s.market}%
-Technical Complexity: ${s.technical}%
-Social Impact: ${s.social}%
-Financial Viability: ${s.financial}%
-
-Average Score: ${Math.round((s.innovation + s.market + s.feasibility + s.technical + s.social + s.financial) / 6)}%
-
-─────────────────────────────────────────────────────────────────────────────
-
-SWOT ANALYSIS
-─────────────────────────────────────────────────────────────────────────────
-
-Strengths:
-${(data.swot?.strengths || ['Strong technical foundation', 'Clear market opportunity']).map(s => `  • ${s}`).join('\n')}
-
-Weaknesses:
-${(data.swot?.weaknesses || ['Limited resources', 'Competition']).map(s => `  • ${s}`).join('\n')}
-
-Opportunities:
-${(data.swot?.opportunities || ['Growing market', 'Government support']).map(s => `  • ${s}`).join('\n')}
-
-Threats:
-${(data.swot?.threats || ['Competitors', 'Regulatory changes']).map(s => `  • ${s}`).join('\n')}
-
-─────────────────────────────────────────────────────────────────────────────
-
-RISK ASSESSMENT
-─────────────────────────────────────────────────────────────────────────────
-
-${(data.risk_analysis || data.risks || []).map(r => `  ${r.name}: ${r.level}`).join('\n')}
-
-─────────────────────────────────────────────────────────────────────────────
-
-RECOMMENDATIONS
-─────────────────────────────────────────────────────────────────────────────
-
-${(data.recommendations || [
-  { priority: 'High', title: 'Increase Innovation', description: 'Add unique features to differentiate from competitors' },
-  { priority: 'Medium', title: 'Strengthen Feasibility', description: 'Break down implementation into smaller phases' },
-  { priority: 'Medium', title: 'Expand Market Research', description: 'Conduct surveys to validate demand' }
-]).map((rec, i) => `  ${i+1}. [${rec.priority}] ${rec.title}\n     ${rec.description || ''}`).join('\n\n')}
-
-─────────────────────────────────────────────────────────────────────────────
-
-FUNDING RECOMMENDATION
-─────────────────────────────────────────────────────────────────────────────
-
-${overall >= 80 ? 'Approved - High Priority'
-  : overall >= 70 ? 'Approved - Medium Priority'
-  : overall >= 60 ? 'Conditionally Approved'
-  : 'Not Recommended'}
-
-Justification: ${overall >= 70 ? 'Strong potential for successful implementation' : 'Needs refinement before funding'}
-
-─────────────────────────────────────────────────────────────────────────────
-
-IMPLEMENTATION TIMELINE
-─────────────────────────────────────────────────────────────────────────────
-
-Phase 1: Research & Validation (2 months)
-Phase 2: MVP Development (4 months)
-Phase 3: Pilot Launch (3 months)
-Phase 4: Market Expansion (6 months)
-
-Total Estimated Time: 15 months
-
-─────────────────────────────────────────────────────────────────────────────
-
-CONCLUSION
-─────────────────────────────────────────────────────────────────────────────
-
-${title} demonstrates ${overall >= 70 ? 'strong' : 'moderate'} potential for innovation in Ethiopia.
-
-${overall >= 70 ? 'Recommended for funding and further development.' : 'Requires additional refinement before resubmission.'}
-
-─────────────────────────────────────────────────────────────────────────────
-
-Mint Innovation Incubator Platform
-Powered by Groq AI • Real-time Evaluation • v4.0
-CONFIDENTIAL - For Official Use Only
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Generated by: Mint Innovation Incubator Platform
+   Powered by: Groq AI • Real-time Evaluation
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `
   }
 
+  // ============================================================
+  // ✅ EXPORT TO PDF
+  // ============================================================
   const handleExportPDF = async () => {
     if (!evaluationResult) {
       toast.error('No evaluation results to export')
@@ -528,24 +467,26 @@ CONFIDENTIAL - For Official Use Only
       {evaluationResult && (
         <div className="mt-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-heading font-semibold text-ink text-xl">📄 Evaluation Report</h2>
-            <button
-              onClick={handleExportPDF}
-              disabled={isExporting}
-              className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 ${
-                isExporting 
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-                  : 'bg-[#1D4241] text-white hover:bg-[#163535]'
-              }`}
-            >
-              <ArrowDownTrayIcon className="h-4 w-4" />
-              {isExporting ? 'Exporting...' : 'Export PDF'}
-            </button>
+            <h2 className="font-heading font-semibold text-ink text-xl">Evaluation Results</h2>
+            <div className="flex gap-2">
+              <button
+                onClick={handleExportPDF}
+                disabled={isExporting}
+                className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 ${
+                  isExporting 
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                    : 'bg-[#1D4241] text-white hover:bg-[#163535]'
+                }`}
+              >
+                <ArrowDownTrayIcon className="h-4 w-4" />
+                {isExporting ? 'Exporting...' : 'Export PDF'}
+              </button>
+            </div>
           </div>
           
           <div className="border-b border-gray-200 mb-6">
             <nav className="-mb-px flex gap-6">
-              {['report', 'overview'].map(tab => (
+              {['overview', 'report'].map(tab => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -560,18 +501,6 @@ CONFIDENTIAL - For Official Use Only
               ))}
             </nav>
           </div>
-          
-          {activeTab === 'report' && (
-            <div className="card p-6 bg-white">
-              <div ref={reportRef} className="bg-white p-8 rounded-lg">
-                <div className="prose prose-sm max-w-none">
-                  <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">
-                    {evaluationResult.detailedFeedback}
-                  </pre>
-                </div>
-              </div>
-            </div>
-          )}
           
           {activeTab === 'overview' && (
             <div className="card p-6 space-y-4">
@@ -599,6 +528,16 @@ CONFIDENTIAL - For Official Use Only
                 <div className="bg-amber-50 p-4 rounded-lg border border-amber-100"><p className="font-medium text-amber-700 flex items-center gap-1"><ExclamationTriangleIcon className="h-4 w-4" /> Threats</p><ul className="text-sm text-amber-600 space-y-1 mt-1">{evaluationResult.swot.threats.map((s, i) => <li key={i}>• {s}</li>)}</ul></div>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg"><p className="font-medium text-ink mb-2">Risk Analysis</p><div className="space-y-2">{evaluationResult.risks.map((r, i) => <div key={i} className="flex items-center justify-between border-b border-gray-200 pb-2"><span className="text-sm">{r.name}</span><span className={`text-xs px-2 py-0.5 rounded-full ${r.level === 'High' ? 'bg-red-100 text-red-600' : r.level === 'Medium' ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'}`}>{r.level}</span></div>)}</div></div>
+            </div>
+          )}
+          
+          {activeTab === 'report' && (
+            <div className="card p-6">
+              <div ref={reportRef} className="bg-white p-8 rounded-lg border border-gray-200">
+                <pre className="text-sm text-gray-800 whitespace-pre-wrap font-mono leading-relaxed">
+                  {evaluationResult.detailedFeedback}
+                </pre>
+              </div>
             </div>
           )}
         </div>

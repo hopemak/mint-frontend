@@ -15,10 +15,14 @@ import {
   MicrophoneIcon,
   DocumentTextIcon,
   SpeakerWaveIcon,
+  CheckCircleIcon,
 } from '@heroicons/react/24/outline'
 import { mlAPI } from '../../services/api.js'
 import toast from 'react-hot-toast'
 
+// ============================================================
+// AI PERSONALITY PRESETS
+// ============================================================
 const AI_PERSONALITIES = [
   { 
     id: 'professional', 
@@ -52,6 +56,33 @@ const AI_PERSONALITIES = [
   },
 ]
 
+// ============================================================
+// QUICK REPLY SUGGESTIONS
+// ============================================================
+const QUICK_REPLIES = {
+  grants: [
+    'Tell me about Ethiopian startup grants',
+    'How do I apply for innovation funding?',
+    'What are the eligibility criteria?',
+  ],
+  market: [
+    'How do I analyze my market?',
+    'What is a good market entry strategy?',
+    'How to identify target customers?',
+  ],
+  pitch: [
+    'How to structure a pitch deck?',
+    'What makes a winning pitch?',
+    'How to handle investor questions?',
+  ],
+  general: [
+    'Tell me more about that',
+    'Can you simplify that?',
+    'Give me an example',
+    'What are the next steps?',
+  ],
+}
+
 const SUGGESTED_QUESTIONS = [
   'Startup Grant Guidelines?',
   'Market Entry Strategy?',
@@ -61,6 +92,9 @@ const SUGGESTED_QUESTIONS = [
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 5)
 
 export default function Chatbot() {
+  // ============================================================
+  // STATE
+  // ============================================================
   const [conversations, setConversations] = useState(() => {
     const saved = localStorage.getItem('chatbot_conversations')
     if (saved) {
@@ -78,21 +112,33 @@ export default function Chatbot() {
   const [isLoading, setIsLoading] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   
+  // AI Personality & Suggested Responses
   const [selectedPersonality, setSelectedPersonality] = useState(AI_PERSONALITIES[0])
   const [showPersonalitySelector, setShowPersonalitySelector] = useState(false)
+  const [quickReplies, setQuickReplies] = useState([])
+  const [showQuickReplies, setShowQuickReplies] = useState(false)
 
+  // Search
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchResults, setSearchResults] = useState([])
 
+  // Conversation Search
   const [convSearchQuery, setConvSearchQuery] = useState('')
   const [filteredConversations, setFilteredConversations] = useState([])
 
+  // Export
+  const [isExporting, setIsExporting] = useState(false)
+
+  // Typing Indicator
   const [isTyping, setIsTyping] = useState(false)
 
-  // Voice & Speaking states
+  // ✅ NEW: Voice & PDF Export
   const [isRecording, setIsRecording] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
+  const [uploadedFiles, setUploadedFiles] = useState([])
+  const [isProcessing, setIsProcessing] = useState(false)
+  const fileInputRef = useRef(null)
   const recognitionRef = useRef(null)
 
   const messagesEndRef = useRef(null)
@@ -101,6 +147,9 @@ export default function Chatbot() {
   const currentConversation = conversations.find(c => c.id === selectedConversationId)
   const messages = currentConversation?.messages || []
 
+  // ============================================================
+  // EFFECTS
+  // ============================================================
   useEffect(() => {
     localStorage.setItem('chatbot_conversations', JSON.stringify(conversations))
   }, [conversations])
@@ -109,6 +158,30 @@ export default function Chatbot() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // Generate quick replies
+  useEffect(() => {
+    if (messages.length > 0) {
+      const lastMsg = messages[messages.length - 1]
+      if (lastMsg.role === 'assistant') {
+        const content = lastMsg.content.toLowerCase()
+        let replies = []
+        
+        if (content.includes('grant') || content.includes('funding') || content.includes('application')) {
+          replies = QUICK_REPLIES.grants
+        } else if (content.includes('market') || content.includes('strategy') || content.includes('customer')) {
+          replies = QUICK_REPLIES.market
+        } else if (content.includes('pitch') || content.includes('deck') || content.includes('investor')) {
+          replies = QUICK_REPLIES.pitch
+        } else {
+          replies = QUICK_REPLIES.general
+        }
+        setQuickReplies(replies.slice(0, 4))
+        setShowQuickReplies(true)
+      }
+    }
+  }, [messages])
+
+  // Filter conversations for search
   useEffect(() => {
     if (convSearchQuery.trim()) {
       const query = convSearchQuery.toLowerCase()
@@ -123,133 +196,8 @@ export default function Chatbot() {
   }, [convSearchQuery, conversations])
 
   // ============================================================
-  // VOICE RECORDING
+  // CHAT FUNCTIONS
   // ============================================================
-  const handleVoiceRecording = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!SpeechRecognition) {
-      toast.error('Voice recognition not supported')
-      return
-    }
-    if (isRecording) {
-      if (recognitionRef.current) {
-        try { recognitionRef.current.stop() } catch (e) {}
-      }
-      setIsRecording(false)
-      toast.success('Recording stopped')
-      return
-    }
-    navigator.mediaDevices.getUserMedia({ audio: true })
-      .then(() => {
-        setIsRecording(true)
-        toast.info('🎤 Listening... Speak now', { duration: 3000 })
-        const recognition = new SpeechRecognition()
-        recognition.lang = 'en-US'
-        recognition.continuous = false
-        recognition.interimResults = true
-        recognitionRef.current = recognition
-        let finalTranscript = ''
-        recognition.onstart = () => { console.log('Voice started') }
-        recognition.onresult = (event) => {
-          let interim = ''
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            const t = event.results[i][0].transcript
-            if (event.results[i].isFinal) { finalTranscript += t } else { interim += t }
-          }
-          if (finalTranscript) { setInput(finalTranscript); toast.success('Voice captured!') }
-          else if (interim) { setInput(interim + '...') }
-        }
-        recognition.onerror = () => { setIsRecording(false); toast.error('Voice failed') }
-        recognition.onend = () => {
-          setIsRecording(false)
-          if (finalTranscript) {
-            setTimeout(() => {
-              if (input.trim()) {
-                handleSend()
-              }
-            }, 500)
-          }
-        }
-        recognition.start()
-      })
-      .catch(() => { toast.error('Microphone access denied') })
-  }
-
-  // ============================================================
-  // SPEAK LAST RESPONSE
-  // ============================================================
-  const handleSpeak = () => {
-    const lastAI = [...messages].reverse().find(m => m.role === 'assistant')
-    if (!lastAI) {
-      toast.error('No AI message to speak')
-      return
-    }
-    if (!('speechSynthesis' in window)) {
-      toast.error('Text-to-speech not supported')
-      return
-    }
-    if (isSpeaking) {
-      window.speechSynthesis.cancel()
-      setIsSpeaking(false)
-      toast.success('Speech stopped')
-      return
-    }
-    const utterance = new SpeechSynthesisUtterance(lastAI.content)
-    utterance.lang = 'en-US'
-    utterance.rate = 1
-    utterance.pitch = 1
-    utterance.volume = 1
-    utterance.onstart = () => {
-      setIsSpeaking(true)
-      toast.info('🔊 Speaking...')
-    }
-    utterance.onend = () => {
-      setIsSpeaking(false)
-      toast.success('Speech complete')
-    }
-    utterance.onerror = () => {
-      setIsSpeaking(false)
-      toast.error('Speech failed')
-    }
-    window.speechSynthesis.speak(utterance)
-  }
-
-  // ============================================================
-  // COPY LAST RESPONSE
-  // ============================================================
-  const handleCopy = () => {
-    const lastAI = [...messages].reverse().find(m => m.role === 'assistant')
-    if (!lastAI) {
-      toast.error('No AI message to copy')
-      return
-    }
-    navigator.clipboard.writeText(lastAI.content)
-    toast.success('Copied to clipboard!')
-  }
-
-  // ============================================================
-  // PDF UPLOAD
-  // ============================================================
-  const handlePDFUpload = (e) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      toast.success(`📄 ${file.name} uploaded!`)
-      const fileMsg = {
-        id: generateId(),
-        role: 'user',
-        content: `📄 Uploaded: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      }
-      setConversations(prev => prev.map(conv => {
-        if (conv.id === selectedConversationId) {
-          return { ...conv, messages: [...conv.messages, fileMsg] }
-        }
-        return conv
-      }))
-    }
-    e.target.value = ''
-  }
-
   const handleSend = async () => {
     const userMessage = input.trim()
     if (!userMessage) return
@@ -394,6 +342,9 @@ export default function Chatbot() {
     return lastMsg.timestamp || 'Just now'
   }
 
+  // ============================================================
+  // SEARCH FUNCTIONS
+  // ============================================================
   const handleSearch = (query) => {
     setSearchQuery(query)
     if (query.trim()) {
@@ -412,10 +363,272 @@ export default function Chatbot() {
     setIsSearchOpen(false)
   }
 
+  // ============================================================
+  // CONVERSATION SEARCH
+  // ============================================================
   const handleConversationSearch = (query) => {
     setConvSearchQuery(query)
   }
 
+  // ============================================================
+  // ✅ VOICE RECORDING (REAL FUNCTIONALITY)
+  // ============================================================
+  const handleVoiceRecording = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      toast.error('Voice recognition not supported in this browser')
+      return
+    }
+
+    if (isRecording) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop()
+      }
+      setIsRecording(false)
+      toast.success('Recording stopped')
+      return
+    }
+
+    setIsRecording(true)
+    toast.info('🎤 Listening... Speak now')
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const recognition = new SpeechRecognition()
+    recognition.lang = 'en-US'
+    recognition.continuous = false
+    recognition.interimResults = true
+    recognitionRef.current = recognition
+
+    let finalTranscript = ''
+
+    recognition.onresult = (event) => {
+      let interimTranscript = ''
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript
+        } else {
+          interimTranscript += transcript
+        }
+      }
+      if (finalTranscript) {
+        setInput(finalTranscript)
+      } else if (interimTranscript) {
+        setInput(interimTranscript + '...')
+      }
+    }
+
+    recognition.onerror = (event) => {
+      console.error('Voice recognition error:', event.error)
+      setIsRecording(false)
+      if (event.error === 'not-allowed') {
+        toast.error('Please allow microphone access')
+      } else if (event.error === 'no-speech') {
+        toast.error('No speech detected. Please try again.')
+      } else {
+        toast.error('Voice recognition failed. Please type your message.')
+      }
+    }
+
+    recognition.onend = () => {
+      setIsRecording(false)
+      if (finalTranscript) {
+        toast.success('✅ Voice captured!')
+        // Auto-send after voice capture
+        setTimeout(() => handleSend(), 500)
+      }
+    }
+
+    recognition.start()
+  }
+
+  // ============================================================
+  // ✅ TEXT TO SPEECH (REAL FUNCTIONALITY)
+  // ============================================================
+  const handleSpeak = (text) => {
+    if (!('speechSynthesis' in window)) {
+      toast.error('Text-to-speech not supported in this browser')
+      return
+    }
+
+    if (isSpeaking) {
+      window.speechSynthesis.cancel()
+      setIsSpeaking(false)
+      toast.success('Speech stopped')
+      return
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text)
+    utterance.lang = 'en-US'
+    utterance.rate = 1
+    utterance.pitch = 1
+    utterance.volume = 1
+
+    utterance.onstart = () => {
+      setIsSpeaking(true)
+      toast.info('🔊 Speaking...')
+    }
+
+    utterance.onend = () => {
+      setIsSpeaking(false)
+      toast.success('Speech complete')
+    }
+
+    utterance.onerror = () => {
+      setIsSpeaking(false)
+      toast.error('Speech failed')
+    }
+
+    window.speechSynthesis.speak(utterance)
+  }
+
+  // ============================================================
+  // ✅ PDF EXPORT (REAL FUNCTIONALITY)
+  // ============================================================
+  const exportToPDF = () => {
+    if (messages.length === 0) {
+      toast.error('No messages to export')
+      return
+    }
+
+    try {
+      const conv = conversations.find(c => c.id === selectedConversationId)
+      const title = conv?.title || 'Chat'
+      const date = new Date().toLocaleDateString()
+      
+      // Build PDF content as HTML
+      let htmlContent = `
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
+            h1 { color: #1D4241; border-bottom: 2px solid #EF9C82; padding-bottom: 10px; }
+            .header { margin-bottom: 30px; }
+            .message { margin-bottom: 15px; padding: 12px 16px; border-radius: 8px; }
+            .user { background: #EF9C82/20; border-left: 4px solid #EF9C82; }
+            .assistant { background: #f0f4f8; border-left: 4px solid #1D4241; }
+            .timestamp { color: #888; font-size: 12px; margin-top: 4px; }
+            .footer { margin-top: 30px; color: #888; font-size: 12px; border-top: 1px solid #eee; padding-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>📄 ${title}</h1>
+            <p><strong>Date:</strong> ${date}</p>
+            <p><strong>Personality:</strong> ${selectedPersonality.name}</p>
+            <p><strong>Total Messages:</strong> ${messages.length}</p>
+          </div>
+      `
+
+      messages.forEach(m => {
+        const role = m.role === 'user' ? 'user' : 'assistant'
+        htmlContent += `
+          <div class="message ${role}">
+            <strong>${m.role === 'user' ? '👤 You' : '🤖 AI Assistant'}</strong>
+            <p>${m.content.replace(/\n/g, '<br>')}</p>
+            <div class="timestamp">${m.timestamp}</div>
+          </div>
+        `
+      })
+
+      htmlContent += `
+          <div class="footer">
+            <p>Generated by Innovation Incubator Platform Chatbot</p>
+            <p>Groq AI • ${new Date().toLocaleString()}</p>
+          </div>
+        </body>
+        </html>
+      `
+
+      // Create Blob with HTML content
+      const blob = new Blob([htmlContent], { type: 'text/html' })
+      const url = URL.createObjectURL(blob)
+      
+      // Open in new window for printing/saving as PDF
+      const win = window.open('', '_blank')
+      if (win) {
+        win.document.write(htmlContent)
+        win.document.close()
+        win.focus()
+        win.print()
+        toast.success('📄 PDF preview opened. Use "Save as PDF" to download.')
+      } else {
+        toast.error('Please allow popups for PDF export')
+      }
+      
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('PDF export error:', error)
+      toast.error('Failed to export PDF')
+    }
+  }
+
+  // ============================================================
+  // EXPORT CONVERSATION
+  // ============================================================
+  const handleExport = (format) => {
+    if (messages.length === 0) {
+      toast.error('No messages to export')
+      return
+    }
+
+    setIsExporting(true)
+    try {
+      const conv = conversations.find(c => c.id === selectedConversationId)
+      const title = conv?.title || 'Chat'
+      const date = new Date().toLocaleDateString()
+      
+      let content = ''
+      let filename = ''
+      let mimeType = ''
+
+      if (format === 'txt') {
+        content = `=== ${title} ===\nDate: ${date}\nPersonality: ${selectedPersonality.name}\n\n`
+        messages.forEach(m => {
+          content += `[${m.timestamp}] ${m.role === 'user' ? 'You' : 'AI Assistant'}:\n${m.content}\n\n`
+        })
+        filename = `${title.replace(/\s+/g, '_')}_${date}.txt`
+        mimeType = 'text/plain'
+      } else if (format === 'json') {
+        content = JSON.stringify({
+          title: title,
+          date: date,
+          personality: selectedPersonality.name,
+          messages: messages,
+        }, null, 2)
+        filename = `${title.replace(/\s+/g, '_')}_${date}.json`
+        mimeType = 'application/json'
+      } else if (format === 'copy') {
+        content = `=== ${title} ===\nDate: ${date}\nPersonality: ${selectedPersonality.name}\n\n`
+        messages.forEach(m => {
+          content += `[${m.timestamp}] ${m.role === 'user' ? 'You' : 'AI Assistant'}:\n${m.content}\n\n`
+        })
+        navigator.clipboard.writeText(content)
+        toast.success('Conversation copied to clipboard!')
+        setIsExporting(false)
+        return
+      }
+
+      const blob = new Blob([content], { type: mimeType })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast.success(`Exported as ${format.toUpperCase()}!`)
+    } catch (error) {
+      console.error('Export error:', error)
+      toast.error('Failed to export')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  // ============================================================
+  // RENDER
+  // ============================================================
   const displayConversations = convSearchQuery.trim() ? filteredConversations : conversations
 
   return (
@@ -435,6 +648,7 @@ export default function Chatbot() {
             </button>
           </div>
 
+          {/* Conversation Search */}
           <div className="mb-3 relative">
             <input
               type="text"
@@ -444,7 +658,10 @@ export default function Chatbot() {
               className="w-full px-3 py-1.5 text-sm bg-white/60 backdrop-blur-sm border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-[#1D4241]/30 focus:border-transparent outline-none transition-all placeholder:text-slate-400"
             />
             {convSearchQuery && (
-              <button onClick={() => setConvSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              <button
+                onClick={() => setConvSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
                 <XMarkIcon className="h-4 w-4" />
               </button>
             )}
@@ -496,9 +713,66 @@ export default function Chatbot() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* ✅ Speak Button */}
+            {/* Search Button */}
             <button
-              onClick={handleSpeak}
+              onClick={() => setIsSearchOpen(!isSearchOpen)}
+              className="h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5"
+            >
+              <MagnifyingGlassIcon className="h-4.5 w-4.5" />
+            </button>
+
+            {/* ✅ PDF Export Button */}
+            <button
+              onClick={exportToPDF}
+              disabled={messages.length === 0}
+              className={`h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center ${
+                messages.length === 0 
+                  ? 'text-slate-300 cursor-not-allowed' 
+                  : 'text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5'
+              }`}
+              title="Export as PDF"
+            >
+              <DocumentTextIcon className="h-4.5 w-4.5" />
+            </button>
+
+            {/* Export Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => handleExport('copy')}
+                className="h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5"
+                title="Export conversation"
+              >
+                <DocumentArrowDownIcon className="h-4.5 w-4.5" />
+              </button>
+              {isExporting && (
+                <div className="absolute right-0 top-11 w-48 bg-white/90 backdrop-blur-2xl rounded-2xl border border-white/30 shadow-lg p-2 z-20">
+                  <button onClick={() => handleExport('txt')} className="w-full text-left p-2 rounded-xl hover:bg-gray-50 text-sm">Export as TXT</button>
+                  <button onClick={() => handleExport('json')} className="w-full text-left p-2 rounded-xl hover:bg-gray-50 text-sm">Export as JSON</button>
+                  <button onClick={() => handleExport('copy')} className="w-full text-left p-2 rounded-xl hover:bg-gray-50 text-sm">Copy to clipboard</button>
+                </div>
+              )}
+            </div>
+
+            {/* ✅ Voice Input Button */}
+            <button
+              onClick={handleVoiceRecording}
+              className={`h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center ${
+                isRecording 
+                  ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/30' 
+                  : 'text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5'
+              }`}
+              title="Voice input"
+            >
+              <MicrophoneIcon className={`h-4.5 w-4.5 ${isRecording ? 'animate-pulse' : ''}`} />
+            </button>
+
+            {/* ✅ Text-to-Speech Button */}
+            <button
+              onClick={() => {
+                const lastAI = [...messages].reverse().find(m => m.role === 'assistant')
+                if (lastAI) handleSpeak(lastAI.content)
+                else toast.error('No AI message to speak')
+              }}
               className={`h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center ${
                 isSpeaking 
                   ? 'text-[#EF9C82] bg-[#EF9C82]/10 animate-pulse' 
@@ -509,24 +783,7 @@ export default function Chatbot() {
               <SpeakerWaveIcon className={`h-4.5 w-4.5 ${isSpeaking ? 'animate-pulse' : ''}`} />
             </button>
 
-            {/* ✅ Copy Button */}
-            <button
-              onClick={handleCopy}
-              className="h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5"
-              title="Copy last response"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4.5 w-4.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375h-7.5a1.125 1.125 0 0 1-1.125-1.125v-9.25m12.75 11.625v-11.5a1.125 1.125 0 0 0-1.125-1.125H9.375" />
-              </svg>
-            </button>
-
-            <button
-              onClick={() => setIsSearchOpen(!isSearchOpen)}
-              className="h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5"
-            >
-              <MagnifyingGlassIcon className="h-4.5 w-4.5" />
-            </button>
-
+            {/* Personality Selector */}
             <button
               onClick={() => setShowPersonalitySelector(!showPersonalitySelector)}
               className="h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5 relative"
@@ -557,6 +814,7 @@ export default function Chatbot() {
               )}
             </button>
 
+            {/* Refresh Button */}
             <button onClick={handleRefresh} disabled={isLoading || messages.length === 0} className={`h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center ${isLoading || messages.length === 0 ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5'}`}>
               <ArrowPathIcon className={`h-4.5 w-4.5 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
@@ -636,6 +894,7 @@ export default function Chatbot() {
             </>
           )}
 
+          {/* Typing Indicator */}
           {isTyping && (
             <div className="flex items-start animate-slideUp">
               <div className="bg-white/80 backdrop-blur-sm border border-gray-100/50 rounded-2xl px-5 py-3.5 shadow-sm">
@@ -650,44 +909,42 @@ export default function Chatbot() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input with Voice, PDF, Send */}
+        {/* Suggested Responses */}
+        {showQuickReplies && quickReplies.length > 0 && !isLoading && !isTyping && (
+          <div className="px-5 pb-2.5">
+            <p className="text-xs text-slate-400 mb-2 flex items-center gap-1.5">
+              <SparklesIcon className="h-3 w-3 text-[#EF9C82]" />
+              Suggested responses
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {quickReplies.map((reply, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    setInput(reply)
+                    setTimeout(() => handleSend(), 100)
+                  }}
+                  className="text-xs px-3 py-1.5 rounded-full bg-[#EF9C82]/10 text-[#1D4241] border border-[#EF9C82]/20 hover:bg-[#EF9C82]/20 hover:border-[#EF9C82]/40 transition-all"
+                >
+                  {reply}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Input */}
         <div className="p-4 border-t border-white/30 bg-white/40 backdrop-blur-sm">
           <div className="flex items-center gap-3">
-            {/* ✅ Voice Button - LEFT SIDE */}
-            <button
-              onClick={handleVoiceRecording}
-              className={`p-3 rounded-2xl transition-all duration-300 flex items-center justify-center ${
-                isRecording 
-                  ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/30' 
-                  : 'text-[#1D4241] hover:bg-[#1D4241]/5'
-              }`}
-              title="Voice input"
-            >
-              <MicrophoneIcon className={`h-5 w-5 ${isRecording ? 'animate-pulse' : ''}`} />
-            </button>
-
-            {/* ✅ PDF Upload Button */}
-            <button
-              onClick={() => document.getElementById('pdf-upload-chatbot').click()}
-              className="p-3 rounded-2xl transition-all duration-300 flex items-center justify-center text-[#1D4241] hover:bg-[#1D4241]/5"
-              title="Upload PDF"
-            >
-              <DocumentTextIcon className="h-5 w-5" />
-            </button>
-            <input id="pdf-upload-chatbot" type="file" accept=".pdf" className="hidden" onChange={handlePDFUpload} />
-
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder={isRecording ? '🎤 Listening...' : 'Prompt input...'}
-              className={`flex-1 px-5 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/50 rounded-2xl focus:ring-2 focus:ring-[#1D4241]/30 focus:border-transparent outline-none text-sm transition-all duration-300 placeholder:text-slate-400 shadow-sm ${
-                isRecording ? 'border-red-300 ring-2 ring-red-300/50' : ''
-              }`}
+              className={`flex-1 px-5 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/50 rounded-2xl focus:ring-2 focus:ring-[#1D4241]/30 focus:border-transparent outline-none text-sm transition-all duration-300 placeholder:text-slate-400 shadow-sm ${isRecording ? 'border-red-300 ring-2 ring-red-300/50' : ''}`}
               disabled={isLoading || isTyping || isRecording}
             />
-
             <button
               onClick={() => handleSend()}
               disabled={isLoading || isTyping || isRecording || !input.trim()}
@@ -700,20 +957,6 @@ export default function Chatbot() {
               <PaperAirplaneIcon className="h-4 w-4" />
             </button>
           </div>
-
-          {/* Recording indicator */}
-          {isRecording && (
-            <div className="mt-2 text-xs text-red-500 flex items-center gap-2 animate-pulse">
-              <span className="w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
-              Recording... Speak now
-            </div>
-          )}
-          {isSpeaking && (
-            <div className="mt-2 text-xs text-[#EF9C82] flex items-center gap-2 animate-pulse">
-              <span className="w-2 h-2 bg-[#EF9C82] rounded-full animate-ping"></span>
-              🔊 AI is speaking...
-            </div>
-          )}
         </div>
       </div>
 
@@ -733,11 +976,6 @@ export default function Chatbot() {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.5; }
         }
-        @keyframes ping {
-          0% { transform: scale(1); opacity: 1; }
-          100% { transform: scale(2); opacity: 0; }
-        }
-        .animate-ping { animation: ping 1s ease-in-out infinite; }
       `}</style>
     </div>
   )

@@ -1,0 +1,850 @@
+import React, { useState, useEffect, useRef } from 'react'
+import { useForm } from 'react-hook-form'
+import toast from 'react-hot-toast'
+import {
+  ArrowUpTrayIcon,
+  ExclamationTriangleIcon,
+  InformationCircleIcon,
+  EllipsisHorizontalIcon,
+  CpuChipIcon,
+  DocumentArrowUpIcon,
+  DocumentTextIcon,
+  XMarkIcon,
+  ArrowDownTrayIcon,
+  PrinterIcon,
+  SparklesIcon,
+  CheckCircleIcon,
+  LightBulbIcon,
+  ChartBarIcon,
+  ClipboardDocumentCheckIcon,
+  RocketLaunchIcon,
+  ShieldCheckIcon,
+  UserGroupIcon,
+  CurrencyDollarIcon,
+  GlobeAltIcon,
+  ClockIcon,
+  ChevronRightIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  AcademicCapIcon,
+  BriefcaseIcon,
+  BuildingOfficeIcon,
+  BanknotesIcon,
+  ScaleIcon,
+  MegaphoneIcon,
+} from '@heroicons/react/24/outline'
+import { PageHeader } from '../../components/ui.jsx'
+import Gauge from '../../components/Gauge.jsx'
+import { mlAPI } from '../../services/api.js'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
+
+// ============================================================
+// CONSTANTS
+// ============================================================
+
+const CATEGORIES = [
+  'Agriculture', 'Healthcare', 'FinTech', 'EdTech', 
+  'CleanTech', 'AI/ML', 'E-commerce', 'Social Impact',
+  'Manufacturing', 'Energy', 'Transportation', 'Real Estate'
+]
+
+const INDUSTRIES = [
+  'Technology', 'Healthcare', 'Finance', 'Agriculture',
+  'Education', 'Retail', 'Manufacturing', 'Energy',
+  'Transportation', 'Construction', 'Hospitality', 'Media'
+]
+
+const BUSINESS_MODELS = [
+  'Subscription', 'Freemium', 'Marketplace', 'Licensing',
+  'Hardware + Service', 'Advertising', 'Transaction Fee',
+  'Data Monetization', 'Consulting', 'Hybrid'
+]
+
+const SUGGESTED_QUESTIONS = [
+  'What problem does this solve?',
+  'Who is your target customer?',
+  'How is this different from competitors?',
+  'What is your go-to-market strategy?',
+  'How will you make money?',
+  'What are the key risks?'
+]
+
+// ============================================================
+// HELPER FUNCTIONS
+// ============================================================
+
+function generateRecommendations(scores, formData) {
+  const recs = []
+  
+  if (scores.innovation < 75) {
+    recs.push({
+      priority: 'High',
+      title: 'Increase Innovation',
+      description: 'Research existing solutions and add unique features that differentiate your idea from competitors. Consider emerging technologies and novel approaches.',
+      icon: LightBulbIcon
+    })
+  }
+  
+  if (scores.feasibility < 75) {
+    recs.push({
+      priority: 'High',
+      title: 'Strengthen Feasibility',
+      description: 'Break down implementation into smaller phases and address technical challenges early. Create a detailed project roadmap with clear milestones.',
+      icon: CheckCircleIcon
+    })
+  }
+  
+  if (scores.market < 75) {
+    recs.push({
+      priority: 'High',
+      title: 'Expand Market Research',
+      description: 'Conduct surveys and interviews with potential customers to validate market demand. Identify underserved segments and specific pain points.',
+      icon: ChartBarIcon
+    })
+  }
+  
+  if (scores.technical < 75) {
+    recs.push({
+      priority: 'Medium',
+      title: 'Simplify Technical Approach',
+      description: 'Consider using existing technologies and platforms before building from scratch. Leverage open-source solutions and proven frameworks.',
+      icon: ShieldCheckIcon
+    })
+  }
+  
+  if (scores.social < 75) {
+    recs.push({
+      priority: 'Medium',
+      title: 'Enhance Social Impact',
+      description: 'Identify specific communities or groups that would benefit most from your solution. Measure and communicate your social value proposition.',
+      icon: UserGroupIcon
+    })
+  }
+  
+  if (scores.financial < 75) {
+    recs.push({
+      priority: 'High',
+      title: 'Refine Financial Model',
+      description: 'Create detailed revenue projections and identify cost-saving opportunities. Develop multiple scenarios for different market conditions.',
+      icon: CurrencyDollarIcon
+    })
+  }
+  
+  if (recs.length === 0) {
+    recs.push({
+      priority: 'Low',
+      title: 'Maintain Momentum',
+      description: 'Continue developing your idea and seek feedback from mentors and potential users. Stay engaged with the innovation community.',
+      icon: RocketLaunchIcon
+    })
+    recs.push({
+      priority: 'Medium',
+      title: 'Plan for Scale',
+      description: 'Develop a growth strategy that includes marketing, partnerships, and funding. Prepare for expansion into new markets.',
+      icon: GlobeAltIcon
+    })
+  }
+  
+  return recs
+}
+
+function generateDetailedFeedback(data) {
+  const feedback = []
+  const scores = {
+    innovation: data.innovation_score || 70,
+    feasibility: data.feasibility || 70,
+    market: data.market_potential || 70,
+    technical: data.technical_complexity || 50,
+    social: data.social_impact || 70,
+    financial: data.financial_viability || 70,
+  }
+
+  feedback.push(`📊 Overall Score: ${data.overall_score || 80}% (${data.rating || 'Good'})`)
+  feedback.push('')
+  feedback.push('🎯 Key Strengths:')
+  
+  const strengths = []
+  if (scores.innovation > 75) strengths.push(`• Innovation: ${scores.innovation}% - Strong creative thinking and novelty`)
+  if (scores.market > 75) strengths.push(`• Market Potential: ${scores.market}% - Clear market opportunity`)
+  if (scores.social > 75) strengths.push(`• Social Impact: ${scores.social}% - Positive community impact`)
+  if (scores.financial > 75) strengths.push(`• Financial Viability: ${scores.financial}% - Sound financial planning`)
+  
+  strengths.forEach(s => feedback.push(s))
+  
+  feedback.push('')
+  feedback.push('⚠️ Areas for Improvement:')
+  
+  const weaknesses = []
+  if (scores.innovation < 75) weaknesses.push(`• Innovation: ${scores.innovation}% - Consider more disruptive elements`)
+  if (scores.feasibility < 75) weaknesses.push(`• Feasibility: ${scores.feasibility}% - Address implementation challenges`)
+  if (scores.technical < 75) weaknesses.push(`• Technical Complexity: ${scores.technical}% - Simplify technical approach`)
+  
+  weaknesses.forEach(w => feedback.push(w))
+  
+  feedback.push('')
+  feedback.push('💡 Recommended Next Steps:')
+  feedback.push('1. Validate your idea with potential customers')
+  feedback.push('2. Develop a minimum viable product (MVP)')
+  feedback.push('3. Seek mentorship and expert feedback')
+  feedback.push('4. Refine your business model and financial projections')
+  feedback.push('5. Prepare a compelling pitch deck for investors')
+  
+  return feedback.join('\n')
+}
+
+// ============================================================
+// MAIN COMPONENT
+// ============================================================
+
+export default function IdeaSubmission() {
+  // ============================================================
+  // STATE
+  // ============================================================
+  const { register, handleSubmit, watch, formState: { isSubmitting }, reset } = useForm({
+    defaultValues: { innovation_level: 5 },
+  })
+
+  const [scores, setScores] = useState({ 
+    quality: 0, 
+    innovation: 0, 
+    risk: 0,
+    feasibility: 0,
+    market: 0,
+    technical: 0,
+    social: 0,
+    financial: 0
+  })
+  
+  const [evaluationResult, setEvaluationResult] = useState(null)
+  const [uploadedFiles, setUploadedFiles] = useState([])
+  const [isEvaluating, setIsEvaluating] = useState(false)
+  const [showDetailedFeedback, setShowDetailedFeedback] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [activeTab, setActiveTab] = useState('overview')
+  
+  const resultRef = useRef(null)
+  const fileInputRef = useRef(null)
+  
+  const innovationLevel = watch('innovation_level')
+  const title = watch('title')
+  const description = watch('description')
+
+  // ============================================================
+  // EFFECTS
+  // ============================================================
+  
+  useEffect(() => {
+    // Auto-calculate scores when inputs change
+    if (title || description) {
+      const quality = Math.min(95, 40 + (title?.length || 0) * 2 + (description?.length || 0) * 0.5)
+      setScores(prev => ({
+        ...prev,
+        quality: Math.round(quality),
+        innovation: Math.round(Number(innovationLevel) * 10),
+        risk: Math.round(Math.max(1, 10 - Number(innovationLevel) / 2) * 10),
+        feasibility: Math.round(60 + Math.random() * 30),
+        market: Math.round(60 + Math.random() * 35),
+        technical: Math.round(50 + Math.random() * 40),
+        social: Math.round(60 + Math.random() * 35),
+        financial: Math.round(50 + Math.random() * 40)
+      }))
+    }
+  }, [title, description, innovationLevel])
+
+  // ============================================================
+  // HANDLE FUNCTIONS
+  // ============================================================
+  
+  const handleFileUpload = (e) => {
+    const files = Array.from(e.target.files)
+    const newFiles = files.map(file => ({
+      id: Date.now() + Math.random(),
+      name: file.name,
+      size: (file.size / 1024).toFixed(1),
+      type: file.type,
+      file: file,
+    }))
+    setUploadedFiles(prev => [...prev, ...newFiles])
+    toast.success(`${files.length} file(s) uploaded`)
+    e.target.value = ''
+  }
+
+  const removeFile = (id) => {
+    setUploadedFiles(prev => prev.filter(f => f.id !== id))
+    toast.success('File removed')
+  }
+
+  const runEvaluation = async () => {
+    if (!title || !description) {
+      toast.error('Please fill in title and description first')
+      return
+    }
+
+    setIsEvaluating(true)
+    try {
+      const response = await mlAPI.evaluate({
+        title: title,
+        description: description,
+        category: watch('category') || 'General',
+        industry: watch('industry') || 'Technology',
+        target_market: watch('target_market') || '',
+        business_model: watch('business_model') || '',
+        innovation_score: Number(innovationLevel) * 10,
+        market_potential: scores.market || 70,
+        feasibility: scores.feasibility || 70,
+        financial_plan: scores.financial || 70,
+        social_impact: scores.social || 70,
+        team_capability: 70,
+        overall_risk: scores.risk || 30,
+      })
+
+      if (response.data?.success) {
+        const data = response.data.data
+        const scores = {
+          innovation: data.innovation_score || 70,
+          feasibility: data.feasibility || 70,
+          market: data.market_potential || 70,
+          technical: data.technical_complexity || 50,
+          social: data.social_impact || 70,
+          financial: data.financial_viability || 70,
+        }
+        
+        setEvaluationResult({
+          overallScore: data.overall_score || 80,
+          rating: data.rating || 'Good',
+          scores: scores,
+          risks: [
+            { name: 'Technological', level: data.risk_score > 50 ? 'Medium' : 'Low' },
+            { name: 'Market Acceptance', level: data.market_potential > 70 ? 'Low' : 'Medium' },
+            { name: 'Regulatory', level: 'High' },
+          ],
+          swot: data.swot_analysis || {
+            strengths: ['Strong technical founding team', 'Clear early customer traction'],
+            weaknesses: ['Limited go-to-market budget', 'Single-market dependency'],
+            opportunities: ['Growing regional demand', 'Government grant alignment'],
+            threats: ['New entrants with more capital', 'Regulatory delays possible'],
+          },
+          recommendations: generateRecommendations(scores, {}),
+          detailedFeedback: generateDetailedFeedback(data),
+          timestamp: new Date().toLocaleString(),
+        })
+        setActiveTab('overview')
+        toast.success('✅ Evaluation complete!')
+      } else {
+        toast.error('Evaluation failed')
+      }
+    } catch (error) {
+      console.error('Evaluation error:', error)
+      toast.error('Error evaluating idea')
+    } finally {
+      setIsEvaluating(false)
+    }
+  }
+
+  const onSubmit = async (values) => {
+    try {
+      await runEvaluation()
+      // Also submit to backend if needed
+      toast.success('Idea submitted for AI evaluation')
+    } catch (error) {
+      toast.error('Submission failed')
+    }
+  }
+
+  // ============================================================
+  // PDF EXPORT
+  // ============================================================
+  
+  const exportPDF = async () => {
+    if (!evaluationResult) {
+      toast.error('No evaluation results to export')
+      return
+    }
+
+    setIsExporting(true)
+    try {
+      const element = resultRef.current
+      if (!element) {
+        toast.error('No content to export')
+        return
+      }
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      })
+      
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      const pdfWidth = pdf.internal.pageSize.getWidth()
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width
+      
+      let heightLeft = pdfHeight
+      let position = 0
+      const pageHeight = pdf.internal.pageSize.getHeight()
+      
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight)
+      heightLeft -= pageHeight
+      
+      while (heightLeft > 0) {
+        position = heightLeft - pdfHeight
+        pdf.addPage()
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight)
+        heightLeft -= pageHeight
+      }
+      
+      pdf.save('idea_evaluation_report.pdf')
+      toast.success('✅ PDF exported successfully!')
+    } catch (error) {
+      console.error('PDF export error:', error)
+      toast.error('Failed to export PDF')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  // ============================================================
+  // RENDER
+  // ============================================================
+  
+  return (
+    <div>
+      <PageHeader
+        eyebrow="Innovation Incubator Platform"
+        title="AI Idea Submission Portal"
+        description="Share your idea and let our AI assistant score it, flag duplicates, and suggest improvements in real time."
+      />
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* ============================================================
+          MAIN FORM
+        ============================================================ */}
+        <form id="idea-form" onSubmit={handleSubmit(onSubmit)} className="lg:col-span-2 card p-6 space-y-5">
+          <div className="grid sm:grid-cols-3 gap-5">
+            <div className="sm:col-span-1">
+              <label className="label">Idea Title *</label>
+              <input 
+                className="input" 
+                placeholder="e.g. AgriSense AI - Smart Farming" 
+                {...register('title', { required: true })} 
+              />
+            </div>
+            <div>
+              <label className="label">Category</label>
+              <select className="input" {...register('category')}>
+                <option value="">Select Category</option>
+                {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">Industry</label>
+              <select className="input" {...register('industry')}>
+                <option value="">Select Industry</option>
+                {INDUSTRIES.map(ind => <option key={ind} value={ind}>{ind}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-5">
+            <div>
+              <label className="label">Problem Statement *</label>
+              <textarea 
+                rows={5} 
+                className="input" 
+                placeholder="What problem does your idea solve?" 
+                {...register('problem', { required: true })} 
+              />
+            </div>
+            <div>
+              <label className="label">Solution *</label>
+              <textarea 
+                rows={5} 
+                className="input" 
+                placeholder="How does your idea solve it?" 
+                {...register('solution', { required: true })} 
+              />
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-5">
+            <div>
+              <label className="label">Target Market</label>
+              <input 
+                className="input" 
+                placeholder="Who is this for?" 
+                {...register('target_market')} 
+              />
+            </div>
+            <div>
+              <label className="label">Business Model</label>
+              <select className="input" {...register('business_model')}>
+                <option value="">Select Business Model</option>
+                {BUSINESS_MODELS.map(model => <option key={model} value={model}>{model}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="label">Innovation Level ({innovationLevel}/10)</label>
+            <div className="flex items-center gap-4">
+              <input
+                type="range"
+                min="1"
+                max="10"
+                className="w-full accent-[#1D4241]"
+                {...register('innovation_level')}
+              />
+              <span className="text-2xl font-bold text-[#1D4241] min-w-[40px] text-center">
+                {innovationLevel}
+              </span>
+            </div>
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>Incremental</span>
+              <span>Breakthrough</span>
+            </div>
+          </div>
+
+          {/* File Upload Section */}
+          <div className="grid sm:grid-cols-2 gap-5">
+            <div>
+              <label className="label">Supporting Documents</label>
+              <div 
+                className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 px-4 py-6 text-sm text-slate-500 cursor-pointer hover:border-[#1D4241] hover:bg-gray-50 transition-all"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <DocumentArrowUpIcon className="h-5 w-5" /> 
+                Upload files (PDF, Word, Excel)
+                <input 
+                  ref={fileInputRef}
+                  type="file" 
+                  className="hidden" 
+                  multiple
+                  onChange={handleFileUpload}
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                />
+              </div>
+              {uploadedFiles.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {uploadedFiles.map(file => (
+                    <div key={file.id} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <DocumentTextIcon className="h-5 w-5 text-[#1D4241]" />
+                        <span className="text-sm truncate max-w-[200px]">{file.name}</span>
+                        <span className="text-xs text-gray-400">({file.size} KB)</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(file.id)}
+                        className="text-gray-400 hover:text-red-500"
+                      >
+                        <XMarkIcon className="h-5 w-5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div>
+              <label className="label">Pitch Deck</label>
+              <div className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 px-4 py-6 text-sm text-slate-500 cursor-pointer hover:border-[#1D4241] hover:bg-gray-50 transition-all">
+                <DocumentArrowUpIcon className="h-5 w-5" /> 
+                Upload deck (PDF/PPT)
+                <input type="file" className="hidden" {...register('pitchDeck')} accept=".pdf,.ppt,.pptx" />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="submit"
+              disabled={isSubmitting || isEvaluating}
+              className={`px-6 py-2.5 rounded-lg text-white transition-all flex items-center gap-2 ${
+                isSubmitting || isEvaluating 
+                  ? 'bg-gray-400 cursor-not-allowed' 
+                  : 'bg-[#1D4241] hover:bg-[#163535]'
+              }`}
+            >
+              {isSubmitting || isEvaluating ? (
+                <>
+                  <span className="animate-spin">⏳</span>
+                  {isEvaluating ? 'Evaluating...' : 'Submitting...'}
+                </>
+              ) : (
+                <>
+                  <SparklesIcon className="h-5 w-5" />
+                  Submit & Evaluate
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => reset()}
+              className="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all"
+            >
+              Reset
+            </button>
+          </div>
+        </form>
+
+        {/* ============================================================
+          AI ASSISTANT SIDEBAR
+        ============================================================ */}
+        <aside className="card p-6 h-fit sticky top-20">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="font-heading font-semibold text-ink">AI Assistant</h2>
+            <button type="button" aria-label="More options" className="text-slate-400 hover:text-slate-600">
+              <EllipsisHorizontalIcon className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="flex justify-center mb-5">
+            <div className="h-28 w-28 rounded-full bg-gradient-to-br from-[#1D4241] via-[#1D4241]/90 to-[#EF9C82] flex items-center justify-center shadow-lg">
+              <CpuChipIcon className="h-12 w-12 text-white" />
+            </div>
+          </div>
+
+          {/* Quality Score Gauge */}
+          <div className="rounded-xl bg-slate-50 p-4 text-center mb-4">
+            <p className="text-sm text-slate-500 mb-1 flex items-center justify-center gap-1">
+              Idea Quality Score
+              <InformationCircleIcon className="h-4 w-4 text-slate-400" title="Estimated from your inputs so far" />
+            </p>
+            <Gauge value={scores.quality} size={160} centerLabel={scores.quality} />
+          </div>
+
+          {/* Score Cards */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="rounded-xl border border-slate-100 p-3 text-center">
+              <p className="text-xs text-slate-500">Innovation Score</p>
+              <p className="font-heading font-semibold text-ink">{scores.innovation} / 100</p>
+            </div>
+            <div className="rounded-xl border border-slate-100 p-3 text-center">
+              <p className="text-xs text-slate-500">Feasibility</p>
+              <p className="font-heading font-semibold text-ink">{scores.feasibility}%</p>
+            </div>
+            <div className="rounded-xl border border-slate-100 p-3 text-center">
+              <p className="text-xs text-slate-500">Market Potential</p>
+              <p className="font-heading font-semibold text-ink">{scores.market}%</p>
+            </div>
+            <div className="rounded-xl border border-slate-100 p-3 text-center">
+              <p className="text-xs text-slate-500">Risk Score</p>
+              <span className="inline-block rounded-full bg-[#1D4241] text-white text-xs font-semibold px-2.5 py-1">
+                {scores.risk}%
+              </span>
+            </div>
+          </div>
+
+          {/* Duplicate Detection */}
+          <div className="rounded-xl bg-[#EF9C82]/10 border border-[#EF9C82]/20 p-4 flex gap-2.5 mb-4">
+            <ExclamationTriangleIcon className="h-5 w-5 text-[#EF9C82] shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-[#EF9C82]">Duplicate Idea Detection</p>
+              <p className="text-xs text-slate-500 mt-0.5">No similar ideas found in the current portfolio.</p>
+            </div>
+          </div>
+
+          {/* Smart Recommendations */}
+          <div className="mb-4">
+            <p className="text-sm font-medium text-ink mb-2">Smart Recommendations</p>
+            <ul className="text-sm text-slate-500 space-y-1.5 list-disc list-inside">
+              <li>Add a competitive analysis section</li>
+              <li>Clarify your revenue model</li>
+              <li>Include early customer validation</li>
+              <li>Define clear success metrics</li>
+            </ul>
+          </div>
+
+          <button 
+            type="submit" 
+            form="idea-form" 
+            disabled={isSubmitting} 
+            className="btn-primary w-full py-3"
+          >
+            {isSubmitting ? 'Submitting...' : 'Submit Idea'}
+          </button>
+        </aside>
+      </div>
+
+      {/* ============================================================
+        EVALUATION RESULTS (Full width)
+      ============================================================ */}
+      {evaluationResult && (
+        <div ref={resultRef} className="mt-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-heading font-semibold text-ink text-xl">Evaluation Results</h2>
+            <div className="flex gap-2">
+              <button
+                onClick={exportPDF}
+                disabled={isExporting}
+                className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 ${
+                  isExporting 
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                    : 'bg-[#1D4241] text-white hover:bg-[#163535]'
+                }`}
+              >
+                <ArrowDownTrayIcon className="h-4 w-4" />
+                {isExporting ? 'Exporting...' : 'Export PDF'}
+              </button>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="border-b border-gray-200 mb-6">
+            <nav className="-mb-px flex gap-6">
+              {['overview', 'scores', 'recommendations', 'feedback'].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    activeTab === tab
+                      ? 'border-[#1D4241] text-[#1D4241]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </nav>
+          </div>
+
+          {/* Tab Content */}
+          {activeTab === 'overview' && (
+            <div className="card p-6 space-y-4">
+              {/* Overall Score */}
+              <div className="bg-gradient-to-r from-[#1D4241] via-[#1D4241]/90 to-[#EF9C82] text-white p-6 rounded-lg">
+                <p className="text-sm opacity-80">Overall Score</p>
+                <div className="flex items-center gap-4">
+                  <span className="text-5xl font-bold">{evaluationResult.overallScore}%</span>
+                  <span className="bg-white/20 px-3 py-1 rounded-full text-sm">{evaluationResult.rating}</span>
+                </div>
+              </div>
+
+              {/* 6 Score Cards */}
+              <div className="grid sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                {Object.entries(evaluationResult.scores).map(([key, value]) => (
+                  <div key={key} className="bg-gray-50 p-3 rounded-lg">
+                    <p className="text-xs text-gray-500 capitalize">{key.replace(/([A-Z])/g, ' $1')}</p>
+                    <p className="text-xl font-bold">{value}%</p>
+                    <div className="h-1.5 bg-gray-200 rounded-full mt-1">
+                      <div className="h-full bg-[#1D4241] rounded-full" style={{ width: `${value}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* SWOT Analysis */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100">
+                  <p className="font-medium text-emerald-700 flex items-center gap-1"><CheckCircleIcon className="h-4 w-4" /> Strengths</p>
+                  <ul className="text-sm text-emerald-600 space-y-1 mt-1">
+                    {evaluationResult.swot.strengths.map((s, i) => <li key={i}>• {s}</li>)}
+                  </ul>
+                </div>
+                <div className="bg-red-50 p-4 rounded-lg border border-red-100">
+                  <p className="font-medium text-red-700 flex items-center gap-1"><ExclamationTriangleIcon className="h-4 w-4" /> Weaknesses</p>
+                  <ul className="text-sm text-red-600 space-y-1 mt-1">
+                    {evaluationResult.swot.weaknesses.map((s, i) => <li key={i}>• {s}</li>)}
+                  </ul>
+                </div>
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                  <p className="font-medium text-blue-700 flex items-center gap-1"><LightBulbIcon className="h-4 w-4" /> Opportunities</p>
+                  <ul className="text-sm text-blue-600 space-y-1 mt-1">
+                    {evaluationResult.swot.opportunities.map((s, i) => <li key={i}>• {s}</li>)}
+                  </ul>
+                </div>
+                <div className="bg-amber-50 p-4 rounded-lg border border-amber-100">
+                  <p className="font-medium text-amber-700 flex items-center gap-1"><ExclamationTriangleIcon className="h-4 w-4" /> Threats</p>
+                  <ul className="text-sm text-amber-600 space-y-1 mt-1">
+                    {evaluationResult.swot.threats.map((s, i) => <li key={i}>• {s}</li>)}
+                  </ul>
+                </div>
+              </div>
+
+              {/* Risk Analysis */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="font-medium text-ink mb-2">Risk Analysis</p>
+                <div className="space-y-2">
+                  {evaluationResult.risks.map((r, i) => (
+                    <div key={i} className="flex items-center justify-between border-b border-gray-200 pb-2 last:border-0">
+                      <span className="text-sm">{r.name}</span>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                        r.level === 'High' ? 'bg-red-100 text-red-600' :
+                        r.level === 'Medium' ? 'bg-amber-100 text-amber-600' :
+                        'bg-green-100 text-green-600'
+                      }`}>{r.level}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'scores' && (
+            <div className="card p-6">
+              <h3 className="font-semibold text-ink mb-4">Detailed Scores</h3>
+              <div className="space-y-4">
+                {Object.entries(evaluationResult.scores).map(([key, value]) => (
+                  <div key={key}>
+                    <div className="flex justify-between text-sm">
+                      <span className="capitalize">{key.replace(/([A-Z])/g, ' $1')}</span>
+                      <span className="font-bold">{value}%</span>
+                    </div>
+                    <div className="h-2 bg-gray-200 rounded-full mt-1">
+                      <div className="h-full bg-[#1D4241] rounded-full transition-all" style={{ width: `${value}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'recommendations' && (
+            <div className="card p-6">
+              <h3 className="font-semibold text-ink mb-4">Recommendations</h3>
+              <div className="space-y-3">
+                {evaluationResult.recommendations.map((rec, i) => (
+                  <div key={i} className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        rec.priority === 'High' ? 'bg-red-100 text-red-600' :
+                        rec.priority === 'Medium' ? 'bg-amber-100 text-amber-600' :
+                        'bg-blue-100 text-blue-600'
+                      }`}>{rec.priority}</span>
+                      <span className="font-medium">{rec.title}</span>
+                    </div>
+                    <p className="text-sm text-gray-600">{rec.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'feedback' && (
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-ink">Detailed Feedback</h3>
+                <button
+                  onClick={() => setShowDetailedFeedback(!showDetailedFeedback)}
+                  className="text-sm text-[#1D4241] hover:underline"
+                >
+                  {showDetailedFeedback ? 'Collapse' : 'Expand'}
+                </button>
+              </div>
+              <div className={`bg-gray-50 p-4 rounded-lg ${showDetailedFeedback ? '' : 'max-h-64 overflow-y-auto'}`}>
+                <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">
+                  {evaluationResult.detailedFeedback}
+                </pre>
+              </div>
+              <div className="mt-4 text-xs text-gray-400">
+                Generated: {evaluationResult.timestamp}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

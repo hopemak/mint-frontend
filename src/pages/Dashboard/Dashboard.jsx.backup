@@ -1,0 +1,425 @@
+import React, { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
+import { dashboardAPI } from '../../services/api'
+import {
+  SparklesIcon,
+  ChevronRightIcon,
+  UserGroupIcon,
+  BellAlertIcon,
+  RocketLaunchIcon,
+  AcademicCapIcon,
+  CalendarDaysIcon,
+} from '@heroicons/react/24/outline'
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  AreaChart,
+  Area,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts'
+
+// ============================================
+// ROLE-BASED DATA GENERATORS
+// ============================================
+
+const getStatsForRole = (role, stats) => {
+  const baseStats = {
+    totalStartups: stats?.total_startups || 0,
+    totalFunding: stats?.total_funding || 0,
+    totalMentors: stats?.total_mentors || 0,
+    successRate: stats?.success_rate || 0,
+  }
+
+  switch(role?.toLowerCase()) {
+    case 'founder':
+      return {
+        ...baseStats,
+        title: 'Startup Dashboard',
+        subtitle: 'Track your startup journey',
+        kpis: {
+          totalStartups: 1,
+          totalFunding: 0,
+          totalMentors: 0,
+          successRate: 0,
+        }
+      }
+    case 'mentor':
+      return {
+        ...baseStats,
+        title: 'Mentor Dashboard',
+        subtitle: 'Guide the next generation of innovators',
+        kpis: {
+          totalStartups: 0,
+          totalFunding: 0,
+          totalMentors: 1,
+          successRate: 0,
+        }
+      }
+    case 'investor':
+      return {
+        ...baseStats,
+        title: 'Investor Dashboard',
+        subtitle: 'Discover investment opportunities',
+        kpis: {
+          totalStartups: 0,
+          totalFunding: 0,
+          totalMentors: 0,
+          successRate: 0,
+        }
+      }
+    case 'admin':
+      return {
+        ...baseStats,
+        title: 'Admin Dashboard',
+        subtitle: 'Oversee the innovation ecosystem',
+        kpis: baseStats,
+      }
+    default:
+      return {
+        ...baseStats,
+        title: 'Dashboard',
+        subtitle: 'Welcome to MInT',
+        kpis: baseStats,
+      }
+  }
+}
+
+// ============================================
+// ROLE-BASED SAMPLE DATA
+// ============================================
+
+const getStartupProgress = (role) => {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
+  if (role === 'founder') {
+    return months.map(m => ({ month: m, progress: Math.floor(Math.random() * 40) + 10 }))
+  }
+  return months.map(m => ({ month: m, progress: Math.floor(Math.random() * 30) + 20 }))
+}
+
+const getKpiTrend = (role) => {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
+  if (role === 'admin') {
+    return months.map((m, i) => ({ 
+      month: m, 
+      sessions: 20 + i * 8 + Math.floor(Math.random() * 10),
+      ideas: 5 + i * 4 + Math.floor(Math.random() * 5)
+    }))
+  }
+  return months.map((m, i) => ({ 
+    month: m, 
+    sessions: 10 + i * 5 + Math.floor(Math.random() * 8),
+    ideas: 3 + i * 3 + Math.floor(Math.random() * 4)
+  }))
+}
+
+const getFundingDonut = (role) => {
+  if (role === 'founder') {
+    return [
+      { name: 'Applied', value: 0, color: '#1D4241' },
+      { name: 'Pending', value: 0, color: '#EF9C82' },
+      { name: 'Approved', value: 0, color: '#10B981' },
+    ]
+  }
+  return [
+    { name: 'Applied', value: 45, color: '#1D4241' },
+    { name: 'Pending', value: 30, color: '#EF9C82' },
+    { name: 'Approved', value: 25, color: '#10B981' },
+  ]
+}
+
+const getUpcomingEvents = (role) => {
+  const baseEvents = [
+    { id: 1, title: 'Mentor Session with Dr. Smith', type: 'Workshop | Meetings', when: 'Today 2:00 PM', attendees: 4 },
+    { id: 2, title: 'Pitch Deck Review', type: 'Workshop | Meetings', when: 'Tomorrow 10:00 AM', attendees: 6 },
+    { id: 3, title: 'Innovation Workshop', type: 'Workshop | Meetings', when: 'Jul 28, 2024', attendees: 12 },
+  ]
+  
+  if (role === 'founder') {
+    return baseEvents
+  }
+  if (role === 'mentor') {
+    return [
+      { id: 1, title: 'Mentoring Session', type: 'Workshop | Meetings', when: 'Today 3:00 PM', attendees: 2 },
+      ...baseEvents.slice(1)
+    ]
+  }
+  return baseEvents.slice(0, 2)
+}
+
+const getActivityFeed = (role) => {
+  const baseFeed = [
+    { id: 1, title: 'New idea submitted', time: '2h ago', detail: 'AI Health Platform' },
+    { id: 2, title: 'Mentor matched', time: '4h ago', detail: 'Dr. Smith assigned' },
+    { id: 3, title: 'Funding request', time: '6h ago', detail: '$50,000 requested' },
+  ]
+  
+  if (role === 'admin') {
+    return [
+      { id: 1, title: 'New startup registered', time: '1h ago', detail: 'AgriTech Solutions' },
+      { id: 2, title: 'Funding approved', time: '3h ago', detail: '$100,000 disbursed' },
+      { id: 3, title: 'New mentor joined', time: '5h ago', detail: 'Dr. Jane Wangari' },
+    ]
+  }
+  return baseFeed
+}
+
+// ============================================
+// MAIN DASHBOARD COMPONENT
+// ============================================
+
+export default function Dashboard() {
+  const { user } = useAuth()
+  const [stats, setStats] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const role = user?.role?.toLowerCase() || 'user'
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await dashboardAPI.getStats()
+        if (response.data?.success) {
+          setStats(response.data.data)
+        }
+      } catch (error) {
+        console.error('Error fetching stats:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchStats()
+  }, [])
+
+  // Role-based data
+  const roleData = getStatsForRole(role, stats)
+  const startupProgress = getStartupProgress(role)
+  const kpiTrend = getKpiTrend(role)
+  const fundingDonut = getFundingDonut(role)
+  const upcomingEvents = getUpcomingEvents(role)
+  const activityFeed = getActivityFeed(role)
+
+  const totalFunds = fundingDonut.reduce((sum, d) => sum + d.value, 0)
+  const totalRaised = ((stats?.total_funding || 0) / 1e6).toFixed(1)
+
+  const eventTone = [
+    { icon: AcademicCapIcon, bg: 'bg-primary-700' },
+    { icon: CalendarDaysIcon, bg: 'bg-primary-400' },
+    { icon: AcademicCapIcon, bg: 'bg-accent-500' },
+  ]
+  const activityIcons = [RocketLaunchIcon, BellAlertIcon, SparklesIcon]
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1D4241]"></div>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      {/* Welcome + Upcoming Events */}
+      <div className="grid lg:grid-cols-4 gap-4 mb-4 items-start">
+        <div className="lg:col-span-2">
+          <h1 className="font-heading text-2xl sm:text-3xl font-semibold text-ink dark:text-white">
+            {roleData.title}
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">
+            {roleData.subtitle}
+          </p>
+        </div>
+
+        <div className="lg:col-span-2 card p-5">
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="font-heading font-semibold text-ink dark:text-white">Upcoming Events</h2>
+            <Link to="#" className="text-sm text-primary font-medium">See all</Link>
+          </div>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+            Stay on top of workshops and mentor meetings.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {upcomingEvents.map((e, i) => {
+              const tone = eventTone[i % eventTone.length]
+              const Icon = tone.icon
+              return (
+                <div
+                  key={e.id}
+                  className="rounded-xl border border-slate-100 dark:border-primary-700 p-3 flex flex-col gap-2"
+                >
+                  <div className={`h-20 w-full rounded-lg flex items-center justify-center ${tone.bg}`}>
+                    <Icon className="h-8 w-8 text-white/90" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm text-ink dark:text-white leading-snug">{e.title}</p>
+                    <p className="text-xs text-slate-500">{e.type} · Meetings</p>
+                  </div>
+                  <div className="flex items-center justify-between mt-auto">
+                    <span className="text-xs text-slate-400">{e.when}</span>
+                    <span className="flex items-center gap-1 text-xs text-primary font-medium">
+                      <UserGroupIcon className="h-3.5 w-3.5" />
+                      {e.attendees}
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Startup Progress + AI Recommendations + Funding Status */}
+      <div className="grid lg:grid-cols-4 gap-4 mb-4 items-stretch">
+        <div className="lg:col-span-2 card p-5 flex flex-col">
+          <h2 className="font-heading font-semibold text-ink dark:text-white mb-4">Startup Progress Bar Chart</h2>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={startupProgress}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+              <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+              <Tooltip />
+              <Bar dataKey="progress" fill="#1D4241" radius={[6,6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="grid grid-cols-3 gap-3 mt-4">
+            <Link to="/idea-submission" className="btn bg-primary text-white hover:bg-primary-700 text-sm">Submit Idea</Link>
+            <Link to="/recommendations" className="btn bg-primary-400 text-white hover:bg-primary-500 text-sm">Find Mentor</Link>
+            <Link to="/funding" className="btn bg-emerald-500 text-white hover:bg-emerald-600 text-sm">Apply for Funding</Link>
+          </div>
+        </div>
+
+        <div className="card p-5 bg-gradient-to-br from-primary-700 to-primary-800 text-white flex flex-col">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="h-9 w-9 rounded-xl bg-white/15 flex items-center justify-center">
+              <SparklesIcon className="h-5 w-5 text-accent" />
+            </div>
+            <h2 className="font-heading font-semibold">AI Recommendations</h2>
+          </div>
+          <div className="space-y-2">
+            <Link to="/recommendations" className="flex items-center justify-between rounded-xl bg-white/10 hover:bg-white/15 px-4 py-3 text-sm transition-colors">
+              AI Recommendations <ChevronRightIcon className="h-4 w-4" />
+            </Link>
+            <Link to="/analytics" className="flex items-center justify-between rounded-xl bg-white/10 hover:bg-white/15 px-4 py-3text-sm transition-colors">
+              Reports &amp; Notifications <ChevronRightIcon className="h-4 w-4" />
+            </Link>
+            <Link to="/funding" className="flex items-center justify-between rounded-xl bg-white/10 hover:bg-white/15 px-4 py-3 text-sm transition-colors">
+              Apply for Funding <ChevronRightIcon className="h-4w-4" />
+            </Link>
+          </div>
+        </div>
+
+        <div className="card p-5 flex flex-col">
+          <h2 className="font-heading font-semibold text-ink dark:text-white mb-2">Funding Status Donut Chart</h2>
+          <div className="relative">
+            <ResponsiveContainer width="100%" height={160}>
+              <PieChart>
+                <Pie data={fundingDonut} dataKey="value" innerRadius={45} outerRadius={70} paddingAngle={2}>
+                  {fundingDonut.map((entry) => (
+                    <Cell key={entry.name} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <p className="font-heading text-lg font-semibold text-ink dark:text-white">${totalRaised}M</p>
+              <p className="text-xs text-slate-500">Funds Raised</p>
+            </div>
+          </div>
+          <div className="space-y-1.5 mt-2">
+            {fundingDonut.map((d) => (
+              <div key={d.name} className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2 text-slate-500">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: d.color }} />
+                  {d.name}
+                </span>
+                <span className="font-medium text-ink dark:text-white">
+                  {totalFunds > 0 ? Math.round((d.value / totalFunds) * 100) : 0}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Key Performance Metrics + Activity Feed */}
+      <div className="grid lg:grid-cols-4 gap-4">
+        <div className="lg:col-span-2 card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-heading font-semibold text-ink dark:text-white">Key Performance Metrics</h2>
+            <span className="flex items-center gap-1.5 text-sm text-slate-500">
+              <span className="h-2.5 w-2.5 rounded-full bg-primary" /> Key Indicators
+            </span>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={kpiTrend}>
+                <defs>
+                  <linearGradient id="colorSessions" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#1D4241" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#1D4241" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                <Tooltip />
+                <Area type="monotone" dataKey="sessions" stroke="#1D4241" fill="url(#colorSessions)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={kpiTrend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                <Tooltip />
+                <Bar dataKey="sessions" fill="#1D4241" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="ideas" fill="#EF9C82" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="lg:col-span-2 card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-heading font-semibold text-ink dark:text-white">Activity Feed</h2>
+            <Link to="#" className="text-sm text-primary font-medium">View all</Link>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-2.5">
+              <Link to="/idea-submission" className="btn w-full bg-primary text-white hover:bg-primary-700 text-sm">Submit Idea</Link>
+              <Link to="/recommendations" className="btn w-full bg-primary-400 text-white hover:bg-primary-500 text-sm">Find Mentor</Link>
+              <Link to="/funding" className="btn w-full bg-emerald-500 text-white hover:bg-emerald-600 text-sm">Apply for Funding</Link>
+            </div>
+            <div className="relative pl-6">
+              <div className="absolute left-2.5 top-1 bottom-1 w-px bg-slate-100 dark:bg-primary-700" />
+              <div className="space-y-4">
+                {activityFeed.map((a, i) => {
+                  const Icon = activityIcons[i % activityIcons.length]
+                  return (
+                    <div key={a.id} className="relative">
+                      <div className="absolute -left-6 top-0 h-5w-5 rounded-full bg-primary/10 dark:bg-primary-700 text-primary dark:text-accent-200 flex items-center justify-center ring-4 ring-white dark:ring-primary-800">
+                        <Icon className="h-3 w-3" />
+                      </div>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-medium text-ink dark:text-white">{a.title}</p>
+                        <span className="text-xs text-slate-400 shrink-0">{a.time}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">{a.detail}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

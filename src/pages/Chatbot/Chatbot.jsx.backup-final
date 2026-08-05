@@ -12,13 +12,14 @@ import {
   MagnifyingGlassIcon,
   XMarkIcon,
   DocumentArrowDownIcon,
-  MicrophoneIcon,
-  DocumentTextIcon,
-  SpeakerWaveIcon,
+  ShareIcon,
 } from '@heroicons/react/24/outline'
 import { mlAPI } from '../../services/api.js'
 import toast from 'react-hot-toast'
 
+// ============================================================
+// AI PERSONALITY PRESETS
+// ============================================================
 const AI_PERSONALITIES = [
   { 
     id: 'professional', 
@@ -52,6 +53,33 @@ const AI_PERSONALITIES = [
   },
 ]
 
+// ============================================================
+// QUICK REPLY SUGGESTIONS
+// ============================================================
+const QUICK_REPLIES = {
+  grants: [
+    'Tell me about Ethiopian startup grants',
+    'How do I apply for innovation funding?',
+    'What are the eligibility criteria?',
+  ],
+  market: [
+    'How do I analyze my market?',
+    'What is a good market entry strategy?',
+    'How to identify target customers?',
+  ],
+  pitch: [
+    'How to structure a pitch deck?',
+    'What makes a winning pitch?',
+    'How to handle investor questions?',
+  ],
+  general: [
+    'Tell me more about that',
+    'Can you simplify that?',
+    'Give me an example',
+    'What are the next steps?',
+  ],
+}
+
 const SUGGESTED_QUESTIONS = [
   'Startup Grant Guidelines?',
   'Market Entry Strategy?',
@@ -61,6 +89,9 @@ const SUGGESTED_QUESTIONS = [
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 5)
 
 export default function Chatbot() {
+  // ============================================================
+  // STATE
+  // ============================================================
   const [conversations, setConversations] = useState(() => {
     const saved = localStorage.getItem('chatbot_conversations')
     if (saved) {
@@ -78,22 +109,26 @@ export default function Chatbot() {
   const [isLoading, setIsLoading] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   
+  // AI Personality & Suggested Responses
   const [selectedPersonality, setSelectedPersonality] = useState(AI_PERSONALITIES[0])
   const [showPersonalitySelector, setShowPersonalitySelector] = useState(false)
+  const [quickReplies, setQuickReplies] = useState([])
+  const [showQuickReplies, setShowQuickReplies] = useState(false)
 
+  // ✅ NEW: Search
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchResults, setSearchResults] = useState([])
 
+  // ✅ NEW: Conversation Search
   const [convSearchQuery, setConvSearchQuery] = useState('')
   const [filteredConversations, setFilteredConversations] = useState([])
 
-  const [isTyping, setIsTyping] = useState(false)
+  // ✅ NEW: Export
+  const [isExporting, setIsExporting] = useState(false)
 
-  // Voice & Speaking states
-  const [isRecording, setIsRecording] = useState(false)
-  const [isSpeaking, setIsSpeaking] = useState(false)
-  const recognitionRef = useRef(null)
+  // ✅ NEW: Typing Indicator
+  const [isTyping, setIsTyping] = useState(false)
 
   const messagesEndRef = useRef(null)
   const searchInputRef = useRef(null)
@@ -101,6 +136,9 @@ export default function Chatbot() {
   const currentConversation = conversations.find(c => c.id === selectedConversationId)
   const messages = currentConversation?.messages || []
 
+  // ============================================================
+  // EFFECTS
+  // ============================================================
   useEffect(() => {
     localStorage.setItem('chatbot_conversations', JSON.stringify(conversations))
   }, [conversations])
@@ -109,6 +147,30 @@ export default function Chatbot() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // Generate quick replies based on last message
+  useEffect(() => {
+    if (messages.length > 0) {
+      const lastMsg = messages[messages.length - 1]
+      if (lastMsg.role === 'assistant') {
+        const content = lastMsg.content.toLowerCase()
+        let replies = []
+        
+        if (content.includes('grant') || content.includes('funding') || content.includes('application')) {
+          replies = QUICK_REPLIES.grants
+        } else if (content.includes('market') || content.includes('strategy') || content.includes('customer')) {
+          replies = QUICK_REPLIES.market
+        } else if (content.includes('pitch') || content.includes('deck') || content.includes('investor')) {
+          replies = QUICK_REPLIES.pitch
+        } else {
+          replies = QUICK_REPLIES.general
+        }
+        setQuickReplies(replies.slice(0, 4))
+        setShowQuickReplies(true)
+      }
+    }
+  }, [messages])
+
+  // ✅ NEW: Filter conversations for search
   useEffect(() => {
     if (convSearchQuery.trim()) {
       const query = convSearchQuery.toLowerCase()
@@ -123,133 +185,8 @@ export default function Chatbot() {
   }, [convSearchQuery, conversations])
 
   // ============================================================
-  // VOICE RECORDING
+  // CHAT FUNCTIONS
   // ============================================================
-  const handleVoiceRecording = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!SpeechRecognition) {
-      toast.error('Voice recognition not supported')
-      return
-    }
-    if (isRecording) {
-      if (recognitionRef.current) {
-        try { recognitionRef.current.stop() } catch (e) {}
-      }
-      setIsRecording(false)
-      toast.success('Recording stopped')
-      return
-    }
-    navigator.mediaDevices.getUserMedia({ audio: true })
-      .then(() => {
-        setIsRecording(true)
-        toast.info('🎤 Listening... Speak now', { duration: 3000 })
-        const recognition = new SpeechRecognition()
-        recognition.lang = 'en-US'
-        recognition.continuous = false
-        recognition.interimResults = true
-        recognitionRef.current = recognition
-        let finalTranscript = ''
-        recognition.onstart = () => { console.log('Voice started') }
-        recognition.onresult = (event) => {
-          let interim = ''
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            const t = event.results[i][0].transcript
-            if (event.results[i].isFinal) { finalTranscript += t } else { interim += t }
-          }
-          if (finalTranscript) { setInput(finalTranscript); toast.success('Voice captured!') }
-          else if (interim) { setInput(interim + '...') }
-        }
-        recognition.onerror = () => { setIsRecording(false); toast.error('Voice failed') }
-        recognition.onend = () => {
-          setIsRecording(false)
-          if (finalTranscript) {
-            setTimeout(() => {
-              if (input.trim()) {
-                handleSend()
-              }
-            }, 500)
-          }
-        }
-        recognition.start()
-      })
-      .catch(() => { toast.error('Microphone access denied') })
-  }
-
-  // ============================================================
-  // SPEAK LAST RESPONSE
-  // ============================================================
-  const handleSpeak = () => {
-    const lastAI = [...messages].reverse().find(m => m.role === 'assistant')
-    if (!lastAI) {
-      toast.error('No AI message to speak')
-      return
-    }
-    if (!('speechSynthesis' in window)) {
-      toast.error('Text-to-speech not supported')
-      return
-    }
-    if (isSpeaking) {
-      window.speechSynthesis.cancel()
-      setIsSpeaking(false)
-      toast.success('Speech stopped')
-      return
-    }
-    const utterance = new SpeechSynthesisUtterance(lastAI.content)
-    utterance.lang = 'en-US'
-    utterance.rate = 1
-    utterance.pitch = 1
-    utterance.volume = 1
-    utterance.onstart = () => {
-      setIsSpeaking(true)
-      toast.info('🔊 Speaking...')
-    }
-    utterance.onend = () => {
-      setIsSpeaking(false)
-      toast.success('Speech complete')
-    }
-    utterance.onerror = () => {
-      setIsSpeaking(false)
-      toast.error('Speech failed')
-    }
-    window.speechSynthesis.speak(utterance)
-  }
-
-  // ============================================================
-  // COPY LAST RESPONSE
-  // ============================================================
-  const handleCopy = () => {
-    const lastAI = [...messages].reverse().find(m => m.role === 'assistant')
-    if (!lastAI) {
-      toast.error('No AI message to copy')
-      return
-    }
-    navigator.clipboard.writeText(lastAI.content)
-    toast.success('Copied to clipboard!')
-  }
-
-  // ============================================================
-  // PDF UPLOAD
-  // ============================================================
-  const handlePDFUpload = (e) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      toast.success(`📄 ${file.name} uploaded!`)
-      const fileMsg = {
-        id: generateId(),
-        role: 'user',
-        content: `📄 Uploaded: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      }
-      setConversations(prev => prev.map(conv => {
-        if (conv.id === selectedConversationId) {
-          return { ...conv, messages: [...conv.messages, fileMsg] }
-        }
-        return conv
-      }))
-    }
-    e.target.value = ''
-  }
-
   const handleSend = async () => {
     const userMessage = input.trim()
     if (!userMessage) return
@@ -394,6 +331,9 @@ export default function Chatbot() {
     return lastMsg.timestamp || 'Just now'
   }
 
+  // ============================================================
+  // ✅ FEATURE 2: SEARCH MESSAGES
+  // ============================================================
   const handleSearch = (query) => {
     setSearchQuery(query)
     if (query.trim()) {
@@ -412,10 +352,80 @@ export default function Chatbot() {
     setIsSearchOpen(false)
   }
 
+  // ============================================================
+  // ✅ FEATURE 1: EXPORT CONVERSATION
+  // ============================================================
+  const handleExport = (format) => {
+    if (messages.length === 0) {
+      toast.error('No messages to export')
+      return
+    }
+
+    setIsExporting(true)
+    try {
+      const conv = conversations.find(c => c.id === selectedConversationId)
+      const title = conv?.title || 'Chat'
+      const date = new Date().toLocaleDateString()
+      
+      let content = ''
+      let filename = ''
+      let mimeType = ''
+
+      if (format === 'txt') {
+        content = `=== ${title} ===\nDate: ${date}\nPersonality: ${selectedPersonality.name}\n\n`
+        messages.forEach(m => {
+          content += `[${m.timestamp}] ${m.role === 'user' ? 'You' : 'AI Assistant'}:\n${m.content}\n\n`
+        })
+        filename = `${title.replace(/\s+/g, '_')}_${date}.txt`
+        mimeType = 'text/plain'
+      } else if (format === 'json') {
+        content = JSON.stringify({
+          title: title,
+          date: date,
+          personality: selectedPersonality.name,
+          messages: messages,
+        }, null, 2)
+        filename = `${title.replace(/\s+/g, '_')}_${date}.json`
+        mimeType = 'application/json'
+      } else if (format === 'copy') {
+        content = `=== ${title} ===\nDate: ${date}\nPersonality: ${selectedPersonality.name}\n\n`
+        messages.forEach(m => {
+          content += `[${m.timestamp}] ${m.role === 'user' ? 'You' : 'AI Assistant'}:\n${m.content}\n\n`
+        })
+        navigator.clipboard.writeText(content)
+        toast.success('Conversation copied to clipboard!')
+        setIsExporting(false)
+        return
+      }
+
+      const blob = new Blob([content], { type: mimeType })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast.success(`Exported as ${format.toUpperCase()}!`)
+    } catch (error) {
+      console.error('Export error:', error)
+      toast.error('Failed to export')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  // ============================================================
+  // ✅ FEATURE 6: CONVERSATION SEARCH
+  // ============================================================
   const handleConversationSearch = (query) => {
     setConvSearchQuery(query)
   }
 
+  // ============================================================
+  // RENDER
+  // ============================================================
   const displayConversations = convSearchQuery.trim() ? filteredConversations : conversations
 
   return (
@@ -435,6 +445,7 @@ export default function Chatbot() {
             </button>
           </div>
 
+          {/* ✅ FEATURE 6: Conversation Search */}
           <div className="mb-3 relative">
             <input
               type="text"
@@ -444,7 +455,10 @@ export default function Chatbot() {
               className="w-full px-3 py-1.5 text-sm bg-white/60 backdrop-blur-sm border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-[#1D4241]/30 focus:border-transparent outline-none transition-all placeholder:text-slate-400"
             />
             {convSearchQuery && (
-              <button onClick={() => setConvSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              <button
+                onClick={() => setConvSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
                 <XMarkIcon className="h-4 w-4" />
               </button>
             )}
@@ -496,36 +510,32 @@ export default function Chatbot() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* ✅ Speak Button */}
-            <button
-              onClick={handleSpeak}
-              className={`h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center ${
-                isSpeaking 
-                  ? 'text-[#EF9C82] bg-[#EF9C82]/10 animate-pulse' 
-                  : 'text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5'
-              }`}
-              title="Read last response aloud"
-            >
-              <SpeakerWaveIcon className={`h-4.5 w-4.5 ${isSpeaking ? 'animate-pulse' : ''}`} />
-            </button>
-
-            {/* ✅ Copy Button */}
-            <button
-              onClick={handleCopy}
-              className="h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5"
-              title="Copy last response"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4.5 w-4.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375h-7.5a1.125 1.125 0 0 1-1.125-1.125v-9.25m12.75 11.625v-11.5a1.125 1.125 0 0 0-1.125-1.125H9.375" />
-              </svg>
-            </button>
-
+            {/* ✅ FEATURE 2: Search Button */}
             <button
               onClick={() => setIsSearchOpen(!isSearchOpen)}
               className="h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5"
+              title="Search messages"
             >
               <MagnifyingGlassIcon className="h-4.5 w-4.5" />
             </button>
+
+            {/* ✅ FEATURE 1: Export Button */}
+            <div className="relative">
+              <button
+                onClick={() => handleExport('copy')}
+                className="h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5"
+                title="Export conversation"
+              >
+                <DocumentArrowDownIcon className="h-4.5 w-4.5" />
+              </button>
+              {isExporting && (
+                <div className="absolute right-0 top-11 w-48 bg-white/90 backdrop-blur-2xl rounded-2xl border border-white/30 shadow-lg p-2 z-20">
+                  <button onClick={() => handleExport('txt')} className="w-full text-left p-2 rounded-xl hover:bg-gray-50 text-sm">Export as TXT</button>
+                  <button onClick={() => handleExport('json')} className="w-full text-left p-2 rounded-xl hover:bg-gray-50 text-sm">Export as JSON</button>
+                  <button onClick={() => handleExport('copy')} className="w-full text-left p-2 rounded-xl hover:bg-gray-50 text-sm">Copy to clipboard</button>
+                </div>
+              )}
+            </div>
 
             <button
               onClick={() => setShowPersonalitySelector(!showPersonalitySelector)}
@@ -556,14 +566,13 @@ export default function Chatbot() {
                 </div>
               )}
             </button>
-
             <button onClick={handleRefresh} disabled={isLoading || messages.length === 0} className={`h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center ${isLoading || messages.length === 0 ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5'}`}>
               <ArrowPathIcon className={`h-4.5 w-4.5 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
 
-        {/* Search Bar */}
+        {/* ✅ FEATURE 2: Search Bar */}
         {isSearchOpen && (
           <div className="px-5 pt-3 pb-2 border-b border-white/20 bg-white/20 backdrop-blur-sm">
             <div className="flex items-center gap-2">
@@ -605,11 +614,13 @@ export default function Chatbot() {
             </div>
           ) : (
             <>
+              {/* Show search results or all messages */}
               {(searchQuery.trim() ? searchResults : messages).map((msg, index) => (
                 <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} animate-slideUp`} style={{ animationDelay: `${index * 80}ms` }}>
                   <div className={`max-w-[85%] rounded-2xl px-5 py-3.5 shadow-md ${msg.role === 'user' ? 'bg-gradient-to-br from-[#EF9C82]/20 to-[#EF9C82]/5 border border-[#EF9C82]/20' : msg.isError ? 'bg-red-50/80 border border-red-200 text-red-600' : 'bg-white/80 backdrop-blur-sm border border-gray-100/50 text-slate-700 shadow-sm'}`}>
                     <p className="text-sm whitespace-pre-wrap leading-relaxed">
                       {searchQuery.trim() ? (
+                        // Highlight search matches
                         msg.content.split(new RegExp(`(${searchQuery})`, 'gi')).map((part, i) =>
                           part.toLowerCase() === searchQuery.toLowerCase() ? (
                             <span key={i} className="bg-[#EF9C82]/30 text-[#1D4241] font-medium px-0.5 rounded">{part}</span>
@@ -636,6 +647,7 @@ export default function Chatbot() {
             </>
           )}
 
+          {/* ✅ FEATURE 5: Typing Indicator */}
           {isTyping && (
             <div className="flex items-start animate-slideUp">
               <div className="bg-white/80 backdrop-blur-sm border border-gray-100/50 rounded-2xl px-5 py-3.5 shadow-sm">
@@ -650,95 +662,27 @@ export default function Chatbot() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input with Voice, PDF, Send */}
-        <div className="p-4 border-t border-white/30 bg-white/40 backdrop-blur-sm">
-          <div className="flex items-center gap-3">
-            {/* ✅ Voice Button - LEFT SIDE */}
-            <button
-              onClick={handleVoiceRecording}
-              className={`p-3 rounded-2xl transition-all duration-300 flex items-center justify-center ${
-                isRecording 
-                  ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/30' 
-                  : 'text-[#1D4241] hover:bg-[#1D4241]/5'
-              }`}
-              title="Voice input"
-            >
-              <MicrophoneIcon className={`h-5 w-5 ${isRecording ? 'animate-pulse' : ''}`} />
-            </button>
-
-            {/* ✅ PDF Upload Button */}
-            <button
-              onClick={() => document.getElementById('pdf-upload-chatbot').click()}
-              className="p-3 rounded-2xl transition-all duration-300 flex items-center justify-center text-[#1D4241] hover:bg-[#1D4241]/5"
-              title="Upload PDF"
-            >
-              <DocumentTextIcon className="h-5 w-5" />
-            </button>
-            <input id="pdf-upload-chatbot" type="file" accept=".pdf" className="hidden" onChange={handlePDFUpload} />
-
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder={isRecording ? '🎤 Listening...' : 'Prompt input...'}
-              className={`flex-1 px-5 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/50 rounded-2xl focus:ring-2 focus:ring-[#1D4241]/30 focus:border-transparent outline-none text-sm transition-all duration-300 placeholder:text-slate-400 shadow-sm ${
-                isRecording ? 'border-red-300 ring-2 ring-red-300/50' : ''
-              }`}
-              disabled={isLoading || isTyping || isRecording}
-            />
-
-            <button
-              onClick={() => handleSend()}
-              disabled={isLoading || isTyping || isRecording || !input.trim()}
-              className={`px-5 py-3 rounded-2xl text-white transition-all duration-300 flex items-center gap-2 shadow-lg ${
-                isLoading || isTyping || isRecording || !input.trim() 
-                  ? 'bg-slate-300 cursor-not-allowed shadow-none' 
-                  : 'bg-gradient-to-r from-[#1D4241] to-[#163535] hover:shadow-xl hover:shadow-[#1D4241]/20 hover:scale-[1.02] active:scale-[0.98]'
-              }`}
-            >
-              <PaperAirplaneIcon className="h-4 w-4" />
-            </button>
+        {/* Suggested Responses */}
+        {showQuickReplies && quickReplies.length > 0 && !isLoading && !isTyping && (
+          <div className="px-5 pb-2.5">
+            <p className="text-xs text-slate-400 mb-2 flex items-center gap-1.5">
+              <SparklesIcon className="h-3 w-3 text-[#EF9C82]" />
+              Suggested responses
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {quickReplies.map((reply, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    setInput(reply)
+                    setTimeout(() => handleSend(), 100)
+                  }}
+                  className="text-xs px-3 py-1.5 rounded-full bg-[#EF9C82]/10 text-[#1D4241] border border-[#EF9C82]/20 hover:bg-[#EF9C82]/20 hover:border-[#EF9C82]/40 transition-all"
+                >
+                  {reply}
+                </button>
+              ))}
+            </div>
           </div>
+        )}
 
-          {/* Recording indicator */}
-          {isRecording && (
-            <div className="mt-2 text-xs text-red-500 flex items-center gap-2 animate-pulse">
-              <span className="w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
-              Recording... Speak now
-            </div>
-          )}
-          {isSpeaking && (
-            <div className="mt-2 text-xs text-[#EF9C82] flex items-center gap-2 animate-pulse">
-              <span className="w-2 h-2 bg-[#EF9C82] rounded-full animate-ping"></span>
-              🔊 AI is speaking...
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* CSS Animations */}
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1D4241/20; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #1D4241/40; }
-        @keyframes slideUp {
-          from { opacity: 0; transform: translateY(16px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-slideUp { animation: slideUp 0.5s ease-out forwards; }
-        .animate-pulse { animation: pulse 1.5s ease-in-out infinite; }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-        @keyframes ping {
-          0% { transform: scale(1); opacity: 1; }
-          100% { transform: scale(2); opacity: 0; }
-        }
-        .animate-ping { animation: ping 1s ease-in-out infinite; }
-      `}</style>
-    </div>
-  )
-}

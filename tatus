@@ -1,0 +1,65 @@
+warning: in the working copy of 'src/pages/Chatbot/Chatbot.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/Dashboard/IdeaSubmission.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/Evaluation/Evaluation.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/Workspace/Workspace.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/services/api.js', LF will be replaced by CRLF the next time Git touches it
+ package-lock.json                      | 266 [32m+++++++++[m[31m-[m
+ package.json                           |   2 [32m+[m
+ src/pages/Chatbot/Chatbot.jsx          | 792 [32m++++++++++++++++++++++++++[m[31m---[m
+ src/pages/Dashboard/IdeaSubmission.jsx | 650 [32m+++++++++++++++++++[m[31m-----[m
+ src/pages/Evaluation/Evaluation.jsx    | 572 [32m++++++++++++++++++[m[31m---[m
+ src/pages/Workspace/Workspace.jsx      | 879 [32m++++++++++++++++++++++[m[31m-----------[m
+ src/services/api.js                    | 244 [32m+++++++[m[31m--[m
+ 7 files changed, 2796 insertions(+), 609 deletions(-)
+warning: in the working copy of 'src/pages/Chatbot/Chatbot.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/Dashboard/IdeaSubmission.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/Evaluation/Evaluation.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/Workspace/Workspace.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/services/api.js', LF will be replaced by CRLF the next time Git touches it
+ package-lock.json                      | 266 [32m+++++++++[m[31m-[m
+ package.json                           |   2 [32m+[m
+ src/pages/Chatbot/Chatbot.jsx          | 792 [32m++++++++++++++++++++++++++[m[31m---[m
+ src/pages/Dashboard/IdeaSubmission.jsx | 650 [32m+++++++++++++++++++[m[31m-----[m
+ src/pages/Evaluation/Evaluation.jsx    | 572 [32m++++++++++++++++++[m[31m---[m
+ src/pages/Workspace/Workspace.jsx      | 879 [32m++++++++++++++++++++++[m[31m-----------[m
+ src/services/api.js                    | 244 [32m+++++++[m[31m--[m
+ 7 files changed, 2796 insertions(+), 609 deletions(-)
+warning: in the working copy of 'src/pages/Chatbot/Chatbot.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/Dashboard/IdeaSubmission.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/Evaluation/Evaluation.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/Workspace/Workspace.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/services/api.js', LF will be replaced by CRLF the next time Git touches it
+ package-lock.json                      | 266 [32m+++++++++[m[31m-[m
+ package.json                           |   2 [32m+[m
+ src/pages/Chatbot/Chatbot.jsx          | 792 [32m++++++++++++++++++++++++++[m[31m---[m
+ src/pages/Dashboard/IdeaSubmission.jsx | 650 [32m+++++++++++++++++++[m[31m-----[m
+ src/pages/Evaluation/Evaluation.jsx    | 572 [32m++++++++++++++++++[m[31m---[m
+ src/pages/Workspace/Workspace.jsx      | 879 [32m++++++++++++++++++++++[m[31m-----------[m
+ src/services/api.js                    | 244 [32m+++++++[m[31m--[m
+ 7 files changed, 2796 insertions(+), 609 deletions(-)
+warning: in the working copy of 'src/pages/Chatbot/Chatbot.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/Dashboard/IdeaSubmission.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/Evaluation/Evaluation.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/Workspace/Workspace.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/services/api.js', LF will be replaced by CRLF the next time Git touches it
+ package-lock.json                      | 266 [32m+++++++++[m[31m-[m
+ package.json                           |   2 [32m+[m
+ src/pages/Chatbot/Chatbot.jsx          | 792 [32m++++++++++++++++++++++++++[m[31m---[m
+ src/pages/Dashboard/IdeaSubmission.jsx | 650 [32m+++++++++++++++++++[m[31m-----[m
+ src/pages/Evaluation/Evaluation.jsx    | 572 [32m++++++++++++++++++[m[31m---[m
+ src/pages/Workspace/Workspace.jsx      | 879 [32m++++++++++++++++++++++[m[31m-----------[m
+ src/services/api.js                    | 244 [32m+++++++[m[31m--[m
+ 7 files changed, 2796 insertions(+), 609 deletions(-)
+warning: in the working copy of 'src/pages/Chatbot/Chatbot.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/Dashboard/IdeaSubmission.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/Evaluation/Evaluation.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/Workspace/Workspace.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/services/api.js', LF will be replaced by CRLF the next time Git touches it
+ package-lock.json                      | 266 [32m+++++++++[m[31m-[m
+ package.json                           |   2 [32m+[m
+ src/pages/Chatbot/Chatbot.jsx          | 792 [32m++++++++++++++++++++++++++[m[31m---[m
+ src/pages/Dashboard/IdeaSubmission.jsx | 650 [32m+++++++++++++++++++[m[31m-----[m
+ src/pages/Evaluation/Evaluation.jsx    | 572 [32m++++++++++++++++++[m[31m---[m
+ src/pages/Workspace/Workspace.jsx      | 879 [32m++++++++++++++++++++++[m[31m-----------[m
+ src/services/api.js                    | 244 [32m+++++++[m[31m--[m
+ 7 files changed, 2796 insertions(+), 609 deletions(-)

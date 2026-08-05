@@ -1,0 +1,402 @@
+import React, { useState, useEffect, useRef } from 'react'
+import {
+  PaperAirplaneIcon,
+  SparklesIcon,
+  UserCircleIcon,
+  ClockIcon,
+  ArrowPathIcon,
+  Bars3Icon,
+  PlusIcon,
+  TrashIcon,
+  ChatBubbleLeftRightIcon,
+} from '@heroicons/react/24/outline'
+import { mlAPI } from '../../services/api.js'
+import toast from 'react-hot-toast'
+
+const SUGGESTED_QUESTIONS = [
+  'Startup Grant Guidelines?',
+  'Market Entry Strategy?',
+  'Pitch Deck Review',
+  'Funding Rounds Overview',
+  'Government Policies',
+  'R&D Tax Credits',
+]
+
+const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 5)
+
+export default function Chatbot() {
+  const [conversations, setConversations] = useState(() => {
+    const saved = localStorage.getItem('chatbot_conversations')
+    if (saved) {
+      try { return JSON.parse(saved) } catch { /* fallback */ }
+    }
+    return [
+      { 
+        id: '1', 
+        title: 'Government Policies', 
+        subtitle: 'Innovation FAQs',
+        messages: [
+          {
+            id: 'm1',
+            role: 'assistant',
+            content: 'Welcome to the AI Chat Assistant! I\'m here to help you with innovation, startup grants, market strategies, and more.\n\nKnowledge base references: Sem lose for | #7C3AED',
+            timestamp: '1:29 AM',
+          },
+        ]
+      },
+      { id: '2', title: 'Project Alpha Discussion', subtitle: 'Lucide 4 hours ago', messages: [] },
+      { id: '3', title: 'Startup Grant Guidelines', subtitle: 'Lucide 3 hours ago', messages: [] },
+      { id: '4', title: 'Market Entry Strategy', subtitle: 'Lucide 3 hours ago', messages: [] },
+      { id: '5', title: 'Pitch Deck Review', subtitle: 'Lucide 2 hours ago', messages: [] },
+      { id: '6', title: 'Funding Rounds Overview', subtitle: 'Lucide 3 hours ago', messages: [] },
+      { id: '7', title: 'R&D Tax Credits', subtitle: 'Lucide 2 hours ago', messages: [] },
+    ]
+  })
+
+  const [selectedConversationId, setSelectedConversationId] = useState('1')
+  const [input, setInput] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const messagesEndRef = useRef(null)
+
+  const currentConversation = conversations.find(c => c.id === selectedConversationId)
+  const messages = currentConversation?.messages || []
+
+  useEffect(() => {
+    localStorage.setItem('chatbot_conversations', JSON.stringify(conversations))
+  }, [conversations])
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  const handleSend = async () => {
+    const userMessage = input.trim()
+    if (!userMessage) return
+
+    const userMsg = {
+      id: generateId(),
+      role: 'user',
+      content: userMessage,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    }
+
+    setConversations(prev => prev.map(conv => {
+      if (conv.id === selectedConversationId) {
+        const newTitle = conv.messages.length === 0 ? userMessage.slice(0, 30) + (userMessage.length > 30 ? '...' : '') : conv.title
+        return { ...conv, title: newTitle, messages: [...conv.messages, userMsg] }
+      }
+      return conv
+    }))
+
+    setInput('')
+    setIsLoading(true)
+
+    try {
+      const response = await mlAPI.chat(userMessage, {})
+      const reply = response.data?.data?.reply || response.data?.data?.response || "I'm sorry, I couldn't generate a response."
+
+      const aiMsg = {
+        id: generateId(),
+        role: 'assistant',
+        content: reply,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }
+
+      setConversations(prev => prev.map(conv => {
+        if (conv.id === selectedConversationId) {
+          return { ...conv, messages: [...conv.messages, aiMsg] }
+        }
+        return conv
+      }))
+
+    } catch (error) {
+      const errorMsg = {
+        id: generateId(),
+        role: 'assistant',
+        content: 'AI service unavailable. Please check the backend.',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isError: true,
+      }
+      setConversations(prev => prev.map(conv => {
+        if (conv.id === selectedConversationId) {
+          return { ...conv, messages: [...conv.messages, errorMsg] }
+        }
+        return conv
+      }))
+      toast.error('AI service unavailable')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleNewConversation = () => {
+    const newConv = { id: generateId(), title: 'New Conversation', subtitle: 'Just now', messages: [] }
+    setConversations(prev => [newConv, ...prev])
+    setSelectedConversationId(newConv.id)
+    toast.success('New conversation started')
+  }
+
+  const handleDeleteConversation = (id) => {
+    if (conversations.length <= 1) {
+      toast.error('Cannot delete the last conversation')
+      return
+    }
+    setConversations(prev => prev.filter(c => c.id !== id))
+    if (selectedConversationId === id) {
+      setSelectedConversationId(conversations.find(c => c.id !== id)?.id || '')
+    }
+    toast.success('Conversation deleted')
+  }
+
+  const handleRefresh = async () => {
+    const conv = conversations.find(c => c.id === selectedConversationId)
+    if (!conv || conv.messages.length === 0) {
+      toast.error('No messages to refresh')
+      return
+    }
+
+    const lastUserMsg = [...conv.messages].reverse().find(m => m.role === 'user')
+    if (!lastUserMsg) {
+      toast.error('No user message to refresh')
+      return
+    }
+
+    const lastMsg = conv.messages[conv.messages.length - 1]
+    if (lastMsg.role === 'assistant') {
+      setConversations(prev => prev.map(c => {
+        if (c.id === selectedConversationId) {
+          return { ...c, messages: c.messages.slice(0, -1) }
+        }
+        return c
+      }))
+    }
+
+    setIsLoading(true)
+    try {
+      const response = await mlAPI.chat(lastUserMsg.content, {})
+      const reply = response.data?.data?.reply || response.data?.data?.response || "I'm sorry, I couldn't generate a response."
+
+      const aiMsg = {
+        id: generateId(),
+        role: 'assistant',
+        content: reply,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }
+
+      setConversations(prev => prev.map(c => {
+        if (c.id === selectedConversationId) {
+          return { ...c, messages: [...c.messages, aiMsg] }
+        }
+        return c
+      }))
+      toast.success('Response regenerated')
+    } catch (error) {
+      toast.error('Failed to refresh')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleSuggestedQuestion = (question) => {
+    setInput(question)
+    setTimeout(() => handleSend(), 100)
+  }
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSend()
+    }
+  }
+
+  const getConversationTime = (conv) => {
+    if (conv.messages.length === 0) return conv.subtitle || 'No messages'
+    const lastMsg = conv.messages[conv.messages.length - 1]
+    return lastMsg.timestamp || 'Just now'
+  }
+
+  return (
+    <div className="h-[calc(100vh-120px)] flex gap-4">
+      {/* Sidebar */}
+      <div className={`
+        ${sidebarOpen ? 'w-64' : 'w-0'} 
+        flex-shrink-0 transition-all duration-300 overflow-hidden
+        lg:w-64 lg:overflow-visible
+        bg-white rounded-xl border border-gray-200
+      `}>
+        <div className="p-4 h-full flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-ink text-sm flex items-center gap-2">
+              <ChatBubbleLeftRightIcon className="h-4 w-4 text-[#1D4241]" />
+              Conversations
+            </h3>
+            <button
+              onClick={handleNewConversation}
+              className="p-1 rounded-lg text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5 transition-all"
+            >
+              <PlusIcon className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto space-y-1">
+            {conversations.map((conv) => (
+              <div
+                key={conv.id}
+                className={`group flex items-center gap-1 rounded-lg transition-all ${
+                  selectedConversationId === conv.id ? 'bg-[#1D4241]/5' : 'hover:bg-gray-50'
+                }`}
+              >
+                <button
+                  className="flex-1 text-left p-2 rounded-lg"
+                  onClick={() => setSelectedConversationId(conv.id)}
+                >
+                  <p className={`text-sm font-medium truncate ${
+                    selectedConversationId === conv.id ? 'text-[#1D4241]' : 'text-ink'
+                  }`}>
+                    {conv.title}
+                  </p>
+                  <p className="text-xs text-slate-400 truncate">{getConversationTime(conv)}</p>
+                </button>
+                <button
+                  onClick={() => handleDeleteConversation(conv.id)}
+                  className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                >
+                  <TrashIcon className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Chat Area */}
+      <div className="flex-1 flex flex-col bg-white rounded-xl border border-gray-200 overflow-hidden">
+        {/* Header */}
+        <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-white">
+          <div className="flex items-center gap-3">
+            <button 
+              className="lg:hidden text-slate-400 hover:text-slate-600"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+            >
+              <Bars3Icon className="h-5 w-5" />
+            </button>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-[#1D4241] flex items-center justify-center">
+                <SparklesIcon className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h2 className="font-heading font-semibold text-ink text-lg">
+                  {currentConversation?.title || 'AI Chat Assistant'}
+                </h2>
+                <p className="text-xs text-slate-400">Groq AI • Real-time</p>
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={handleRefresh}
+            disabled={isLoading || messages.length === 0}
+            className={`p-2 rounded-lg transition-all ${
+              isLoading || messages.length === 0
+                ? 'text-slate-300 cursor-not-allowed'
+                : 'text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5'
+            }`}
+          >
+            <ArrowPathIcon className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <SparklesIcon className="h-12 w-12 text-gray-300 mb-3" />
+              <p className="text-gray-400 text-sm">No messages yet</p>
+              <p className="text-gray-400 text-xs">Ask a question to start the conversation</p>
+            </div>
+          ) : (
+            messages.map((msg) => (
+              <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                <div className={`
+                  max-w-[85%] rounded-xl px-4 py-3
+                  ${msg.role === 'user' 
+                    ? 'bg-[#EF9C82]/10 text-ink' 
+                    : msg.isError 
+                      ? 'bg-red-50 border border-red-200 text-red-600' 
+                      : 'bg-gray-50 text-slate-700'
+                  }
+                `}>
+                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                  {msg.content.includes('#7C3AED') && (
+                    <div className="mt-2 text-xs text-[#1D4241] bg-[#1D4241]/5 px-2 py-1 rounded inline-block">
+                      Knowledge base: #7C3AED
+                    </div>
+                  )}
+                </div>
+                <span className="text-xs text-slate-400 mt-1 px-1">{msg.timestamp}</span>
+              </div>
+            ))
+          )}
+          
+          {isLoading && (
+            <div className="flex items-start">
+              <div className="bg-gray-50 rounded-xl px-4 py-3">
+                <div className="flex gap-1">
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
+                </div>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Suggested Questions */}
+        {messages.length <= 2 && (
+          <div className="px-4 pb-2">
+            <p className="text-xs text-slate-400 mb-2">Suggested questions</p>
+            <div className="flex flex-wrap gap-2">
+              {SUGGESTED_QUESTIONS.slice(0, 3).map((q) => (
+                <button
+                  key={q}
+                  onClick={() => handleSuggestedQuestion(q)}
+                  className="text-xs px-3 py-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-slate-600 transition-colors"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Input */}
+        <div className="p-4 border-t border-gray-200">
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Ask anything about innovation, grants, market strategy..."
+              className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#1D4241] focus:border-transparent outline-none text-sm"
+              disabled={isLoading}
+            />
+            <button
+              onClick={handleSend}
+              disabled={isLoading || !input.trim()}
+              className={`
+                px-4 py-2.5 rounded-xl text-white transition-all
+                ${isLoading || !input.trim() 
+                  ? 'bg-gray-300 cursor-not-allowed' 
+                  : 'bg-[#1D4241] hover:bg-[#163535]'
+                }
+              `}
+            >
+              <PaperAirplaneIcon className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

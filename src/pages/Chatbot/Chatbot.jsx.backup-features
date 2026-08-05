@@ -9,16 +9,13 @@ import {
   PlusIcon,
   TrashIcon,
   ChatBubbleLeftRightIcon,
-  MagnifyingGlassIcon,
-  XMarkIcon,
-  DocumentArrowDownIcon,
-  MicrophoneIcon,
-  DocumentTextIcon,
-  SpeakerWaveIcon,
 } from '@heroicons/react/24/outline'
 import { mlAPI } from '../../services/api.js'
 import toast from 'react-hot-toast'
 
+// ============================================================
+// AI PERSONALITY PRESETS
+// ============================================================
 const AI_PERSONALITIES = [
   { 
     id: 'professional', 
@@ -52,6 +49,33 @@ const AI_PERSONALITIES = [
   },
 ]
 
+// ============================================================
+// QUICK REPLY SUGGESTIONS
+// ============================================================
+const QUICK_REPLIES = {
+  grants: [
+    'Tell me about Ethiopian startup grants',
+    'How do I apply for innovation funding?',
+    'What are the eligibility criteria?',
+  ],
+  market: [
+    'How do I analyze my market?',
+    'What is a good market entry strategy?',
+    'How to identify target customers?',
+  ],
+  pitch: [
+    'How to structure a pitch deck?',
+    'What makes a winning pitch?',
+    'How to handle investor questions?',
+  ],
+  general: [
+    'Tell me more about that',
+    'Can you simplify that?',
+    'Give me an example',
+    'What are the next steps?',
+  ],
+}
+
 const SUGGESTED_QUESTIONS = [
   'Startup Grant Guidelines?',
   'Market Entry Strategy?',
@@ -78,25 +102,13 @@ export default function Chatbot() {
   const [isLoading, setIsLoading] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   
+  // AI Personality & Suggested Responses
   const [selectedPersonality, setSelectedPersonality] = useState(AI_PERSONALITIES[0])
   const [showPersonalitySelector, setShowPersonalitySelector] = useState(false)
-
-  const [searchQuery, setSearchQuery] = useState('')
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [searchResults, setSearchResults] = useState([])
-
-  const [convSearchQuery, setConvSearchQuery] = useState('')
-  const [filteredConversations, setFilteredConversations] = useState([])
-
-  const [isTyping, setIsTyping] = useState(false)
-
-  // Voice & Speaking states
-  const [isRecording, setIsRecording] = useState(false)
-  const [isSpeaking, setIsSpeaking] = useState(false)
-  const recognitionRef = useRef(null)
-
+  const [quickReplies, setQuickReplies] = useState([])
+  const [showQuickReplies, setShowQuickReplies] = useState(false)
+  
   const messagesEndRef = useRef(null)
-  const searchInputRef = useRef(null)
 
   const currentConversation = conversations.find(c => c.id === selectedConversationId)
   const messages = currentConversation?.messages || []
@@ -109,146 +121,28 @@ export default function Chatbot() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // Generate quick replies based on last message
   useEffect(() => {
-    if (convSearchQuery.trim()) {
-      const query = convSearchQuery.toLowerCase()
-      const filtered = conversations.filter(conv => 
-        conv.title.toLowerCase().includes(query) ||
-        conv.messages.some(m => m.content.toLowerCase().includes(query))
-      )
-      setFilteredConversations(filtered)
-    } else {
-      setFilteredConversations(conversations)
-    }
-  }, [convSearchQuery, conversations])
-
-  // ============================================================
-  // VOICE RECORDING
-  // ============================================================
-  const handleVoiceRecording = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!SpeechRecognition) {
-      toast.error('Voice recognition not supported')
-      return
-    }
-    if (isRecording) {
-      if (recognitionRef.current) {
-        try { recognitionRef.current.stop() } catch (e) {}
+    if (messages.length > 0) {
+      const lastMsg = messages[messages.length - 1]
+      if (lastMsg.role === 'assistant') {
+        const content = lastMsg.content.toLowerCase()
+        let replies = []
+        
+        if (content.includes('grant') || content.includes('funding') || content.includes('application')) {
+          replies = QUICK_REPLIES.grants
+        } else if (content.includes('market') || content.includes('strategy') || content.includes('customer')) {
+          replies = QUICK_REPLIES.market
+        } else if (content.includes('pitch') || content.includes('deck') || content.includes('investor')) {
+          replies = QUICK_REPLIES.pitch
+        } else {
+          replies = QUICK_REPLIES.general
+        }
+        setQuickReplies(replies.slice(0, 4))
+        setShowQuickReplies(true)
       }
-      setIsRecording(false)
-      toast.success('Recording stopped')
-      return
     }
-    navigator.mediaDevices.getUserMedia({ audio: true })
-      .then(() => {
-        setIsRecording(true)
-        toast.info('🎤 Listening... Speak now', { duration: 3000 })
-        const recognition = new SpeechRecognition()
-        recognition.lang = 'en-US'
-        recognition.continuous = false
-        recognition.interimResults = true
-        recognitionRef.current = recognition
-        let finalTranscript = ''
-        recognition.onstart = () => { console.log('Voice started') }
-        recognition.onresult = (event) => {
-          let interim = ''
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            const t = event.results[i][0].transcript
-            if (event.results[i].isFinal) { finalTranscript += t } else { interim += t }
-          }
-          if (finalTranscript) { setInput(finalTranscript); toast.success('Voice captured!') }
-          else if (interim) { setInput(interim + '...') }
-        }
-        recognition.onerror = () => { setIsRecording(false); toast.error('Voice failed') }
-        recognition.onend = () => {
-          setIsRecording(false)
-          if (finalTranscript) {
-            setTimeout(() => {
-              if (input.trim()) {
-                handleSend()
-              }
-            }, 500)
-          }
-        }
-        recognition.start()
-      })
-      .catch(() => { toast.error('Microphone access denied') })
-  }
-
-  // ============================================================
-  // SPEAK LAST RESPONSE
-  // ============================================================
-  const handleSpeak = () => {
-    const lastAI = [...messages].reverse().find(m => m.role === 'assistant')
-    if (!lastAI) {
-      toast.error('No AI message to speak')
-      return
-    }
-    if (!('speechSynthesis' in window)) {
-      toast.error('Text-to-speech not supported')
-      return
-    }
-    if (isSpeaking) {
-      window.speechSynthesis.cancel()
-      setIsSpeaking(false)
-      toast.success('Speech stopped')
-      return
-    }
-    const utterance = new SpeechSynthesisUtterance(lastAI.content)
-    utterance.lang = 'en-US'
-    utterance.rate = 1
-    utterance.pitch = 1
-    utterance.volume = 1
-    utterance.onstart = () => {
-      setIsSpeaking(true)
-      toast.info('🔊 Speaking...')
-    }
-    utterance.onend = () => {
-      setIsSpeaking(false)
-      toast.success('Speech complete')
-    }
-    utterance.onerror = () => {
-      setIsSpeaking(false)
-      toast.error('Speech failed')
-    }
-    window.speechSynthesis.speak(utterance)
-  }
-
-  // ============================================================
-  // COPY LAST RESPONSE
-  // ============================================================
-  const handleCopy = () => {
-    const lastAI = [...messages].reverse().find(m => m.role === 'assistant')
-    if (!lastAI) {
-      toast.error('No AI message to copy')
-      return
-    }
-    navigator.clipboard.writeText(lastAI.content)
-    toast.success('Copied to clipboard!')
-  }
-
-  // ============================================================
-  // PDF UPLOAD
-  // ============================================================
-  const handlePDFUpload = (e) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      toast.success(`📄 ${file.name} uploaded!`)
-      const fileMsg = {
-        id: generateId(),
-        role: 'user',
-        content: `📄 Uploaded: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      }
-      setConversations(prev => prev.map(conv => {
-        if (conv.id === selectedConversationId) {
-          return { ...conv, messages: [...conv.messages, fileMsg] }
-        }
-        return conv
-      }))
-    }
-    e.target.value = ''
-  }
+  }, [messages])
 
   const handleSend = async () => {
     const userMessage = input.trim()
@@ -271,7 +165,6 @@ export default function Chatbot() {
 
     setInput('')
     setIsLoading(true)
-    setIsTyping(true)
 
     try {
       const response = await mlAPI.chat(userMessage, {
@@ -299,7 +192,6 @@ export default function Chatbot() {
       toast.error('AI service unavailable')
     } finally {
       setIsLoading(false)
-      setIsTyping(false)
     }
   }
 
@@ -346,7 +238,6 @@ export default function Chatbot() {
     }
 
     setIsLoading(true)
-    setIsTyping(true)
     try {
       const response = await mlAPI.chat(lastUserMsg.content, {
         personality: selectedPersonality.name,
@@ -372,7 +263,6 @@ export default function Chatbot() {
       toast.error('Failed to refresh')
     } finally {
       setIsLoading(false)
-      setIsTyping(false)
     }
   }
 
@@ -394,30 +284,6 @@ export default function Chatbot() {
     return lastMsg.timestamp || 'Just now'
   }
 
-  const handleSearch = (query) => {
-    setSearchQuery(query)
-    if (query.trim()) {
-      const results = messages.filter(msg => 
-        msg.content.toLowerCase().includes(query.toLowerCase())
-      )
-      setSearchResults(results)
-    } else {
-      setSearchResults([])
-    }
-  }
-
-  const clearSearch = () => {
-    setSearchQuery('')
-    setSearchResults([])
-    setIsSearchOpen(false)
-  }
-
-  const handleConversationSearch = (query) => {
-    setConvSearchQuery(query)
-  }
-
-  const displayConversations = convSearchQuery.trim() ? filteredConversations : conversations
-
   return (
     <div className="h-[calc(100vh-120px)] flex gap-4 relative">
       {/* Sidebar */}
@@ -428,30 +294,14 @@ export default function Chatbot() {
               <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-[#1D4241] to-[#EF9C82] flex items-center justify-center shadow-lg">
                 <ChatBubbleLeftRightIcon className="h-4 w-4 text-white" />
               </div>
-              <span className="text-[#1D4241]">Conversations</span>
+              <span className="text-[#1D4241]">Conversation</span>
             </h3>
             <button onClick={handleNewConversation} className="h-8 w-8 rounded-xl bg-gradient-to-br from-[#1D4241] to-[#163535] text-white hover:shadow-lg hover:shadow-[#1D4241]/20 transition-all flex items-center justify-center">
               <PlusIcon className="h-4 w-4" />
             </button>
           </div>
-
-          <div className="mb-3 relative">
-            <input
-              type="text"
-              value={convSearchQuery}
-              onChange={(e) => handleConversationSearch(e.target.value)}
-              placeholder="Search conversations..."
-              className="w-full px-3 py-1.5 text-sm bg-white/60 backdrop-blur-sm border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-[#1D4241]/30 focus:border-transparent outline-none transition-all placeholder:text-slate-400"
-            />
-            {convSearchQuery && (
-              <button onClick={() => setConvSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                <XMarkIcon className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-
           <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
-            {displayConversations.map((conv) => (
+            {conversations.map((conv) => (
               <div key={conv.id} className={`group flex items-center gap-1 rounded-2xl transition-all duration-300 ${selectedConversationId === conv.id ? 'bg-gradient-to-r from-[#1D4241]/10 to-[#EF9C82]/5 shadow-sm' : 'hover:bg-gray-50/80'}`}>
                 <button className="flex-1 text-left p-3 rounded-2xl" onClick={() => setSelectedConversationId(conv.id)}>
                   <p className={`text-sm font-medium truncate ${selectedConversationId === conv.id ? 'text-[#1D4241]' : 'text-ink'}`}>{conv.title}</p>
@@ -465,9 +315,6 @@ export default function Chatbot() {
                 </button>
               </div>
             ))}
-            {displayConversations.length === 0 && (
-              <p className="text-sm text-slate-400 text-center py-4">No conversations found</p>
-            )}
           </div>
         </div>
       </div>
@@ -496,37 +343,6 @@ export default function Chatbot() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* ✅ Speak Button */}
-            <button
-              onClick={handleSpeak}
-              className={`h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center ${
-                isSpeaking 
-                  ? 'text-[#EF9C82] bg-[#EF9C82]/10 animate-pulse' 
-                  : 'text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5'
-              }`}
-              title="Read last response aloud"
-            >
-              <SpeakerWaveIcon className={`h-4.5 w-4.5 ${isSpeaking ? 'animate-pulse' : ''}`} />
-            </button>
-
-            {/* ✅ Copy Button */}
-            <button
-              onClick={handleCopy}
-              className="h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5"
-              title="Copy last response"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4.5 w-4.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375h-7.5a1.125 1.125 0 0 1-1.125-1.125v-9.25m12.75 11.625v-11.5a1.125 1.125 0 0 0-1.125-1.125H9.375" />
-              </svg>
-            </button>
-
-            <button
-              onClick={() => setIsSearchOpen(!isSearchOpen)}
-              className="h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5"
-            >
-              <MagnifyingGlassIcon className="h-4.5 w-4.5" />
-            </button>
-
             <button
               onClick={() => setShowPersonalitySelector(!showPersonalitySelector)}
               className="h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5 relative"
@@ -556,35 +372,11 @@ export default function Chatbot() {
                 </div>
               )}
             </button>
-
             <button onClick={handleRefresh} disabled={isLoading || messages.length === 0} className={`h-9 w-9 rounded-xl transition-all duration-300 flex items-center justify-center ${isLoading || messages.length === 0 ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-[#1D4241] hover:bg-[#1D4241]/5'}`}>
               <ArrowPathIcon className={`h-4.5 w-4.5 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
-
-        {/* Search Bar */}
-        {isSearchOpen && (
-          <div className="px-5 pt-3 pb-2 border-b border-white/20 bg-white/20 backdrop-blur-sm">
-            <div className="flex items-center gap-2">
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => handleSearch(e.target.value)}
-                placeholder="Search messages..."
-                className="flex-1 px-4 py-2 text-sm bg-white/60 backdrop-blur-sm border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-[#1D4241]/30 focus:border-transparent outline-none transition-all"
-                autoFocus
-              />
-              <button onClick={clearSearch} className="p-2 rounded-xl text-slate-400 hover:text-slate-600">
-                <XMarkIcon className="h-4 w-4" />
-              </button>
-            </div>
-            {searchResults.length > 0 && (
-              <p className="text-xs text-slate-400 mt-2">{searchResults.length} message{searchResults.length > 1 ? 's' : ''} found</p>
-            )}
-          </div>
-        )}
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar bg-gradient-to-b from-white/30 to-white/10">
@@ -604,39 +396,19 @@ export default function Chatbot() {
               </div>
             </div>
           ) : (
-            <>
-              {(searchQuery.trim() ? searchResults : messages).map((msg, index) => (
-                <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} animate-slideUp`} style={{ animationDelay: `${index * 80}ms` }}>
-                  <div className={`max-w-[85%] rounded-2xl px-5 py-3.5 shadow-md ${msg.role === 'user' ? 'bg-gradient-to-br from-[#EF9C82]/20 to-[#EF9C82]/5 border border-[#EF9C82]/20' : msg.isError ? 'bg-red-50/80 border border-red-200 text-red-600' : 'bg-white/80 backdrop-blur-sm border border-gray-100/50 text-slate-700 shadow-sm'}`}>
-                    <p className="text-sm whitespace-pre-wrap leading-relaxed">
-                      {searchQuery.trim() ? (
-                        msg.content.split(new RegExp(`(${searchQuery})`, 'gi')).map((part, i) =>
-                          part.toLowerCase() === searchQuery.toLowerCase() ? (
-                            <span key={i} className="bg-[#EF9C82]/30 text-[#1D4241] font-medium px-0.5 rounded">{part}</span>
-                          ) : (
-                            part
-                          )
-                        )
-                      ) : (
-                        msg.content
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 mt-1.5 px-1">
-                    <ClockIcon className="h-3 w-3 text-slate-300" />
-                    <span className="text-xs text-slate-400">{msg.timestamp}</span>
-                  </div>
+            messages.map((msg, index) => (
+              <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} animate-slideUp`} style={{ animationDelay: `${index * 80}ms` }}>
+                <div className={`max-w-[85%] rounded-2xl px-5 py-3.5 shadow-md ${msg.role === 'user' ? 'bg-gradient-to-br from-[#EF9C82]/20 to-[#EF9C82]/5 border border-[#EF9C82]/20' : msg.isError ? 'bg-red-50/80 border border-red-200 text-red-600' : 'bg-white/80 backdrop-blur-sm border border-gray-100/50 text-slate-700 shadow-sm'}`}>
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                 </div>
-              ))}
-              {searchQuery.trim() && searchResults.length === 0 && (
-                <div className="text-center py-8">
-                  <p className="text-slate-400 text-sm">No messages found matching "{searchQuery}"</p>
+                <div className="flex items-center gap-2 mt-1.5 px-1">
+                  <ClockIcon className="h-3 w-3 text-slate-300" />
+                  <span className="text-xs text-slate-400">{msg.timestamp}</span>
                 </div>
-              )}
-            </>
+              </div>
+            ))
           )}
-
-          {isTyping && (
+          {isLoading && (
             <div className="flex items-start animate-slideUp">
               <div className="bg-white/80 backdrop-blur-sm border border-gray-100/50 rounded-2xl px-5 py-3.5 shadow-sm">
                 <div className="flex gap-1.5">
@@ -650,49 +422,47 @@ export default function Chatbot() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input with Voice, PDF, Send */}
+        {/* Suggested Responses */}
+        {showQuickReplies && quickReplies.length > 0 && !isLoading && (
+          <div className="px-5 pb-2.5">
+            <p className="text-xs text-slate-400 mb-2 flex items-center gap-1.5">
+              <SparklesIcon className="h-3 w-3 text-[#EF9C82]" />
+              Suggested responses
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {quickReplies.map((reply, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    setInput(reply)
+                    setTimeout(() => handleSend(), 100)
+                  }}
+                  className="text-xs px-3 py-1.5 rounded-full bg-[#EF9C82]/10 text-[#1D4241] border border-[#EF9C82]/20 hover:bg-[#EF9C82]/20 hover:border-[#EF9C82]/40 transition-all"
+                >
+                  {reply}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Input */}
         <div className="p-4 border-t border-white/30 bg-white/40 backdrop-blur-sm">
           <div className="flex items-center gap-3">
-            {/* ✅ Voice Button - LEFT SIDE */}
-            <button
-              onClick={handleVoiceRecording}
-              className={`p-3 rounded-2xl transition-all duration-300 flex items-center justify-center ${
-                isRecording 
-                  ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/30' 
-                  : 'text-[#1D4241] hover:bg-[#1D4241]/5'
-              }`}
-              title="Voice input"
-            >
-              <MicrophoneIcon className={`h-5 w-5 ${isRecording ? 'animate-pulse' : ''}`} />
-            </button>
-
-            {/* ✅ PDF Upload Button */}
-            <button
-              onClick={() => document.getElementById('pdf-upload-chatbot').click()}
-              className="p-3 rounded-2xl transition-all duration-300 flex items-center justify-center text-[#1D4241] hover:bg-[#1D4241]/5"
-              title="Upload PDF"
-            >
-              <DocumentTextIcon className="h-5 w-5" />
-            </button>
-            <input id="pdf-upload-chatbot" type="file" accept=".pdf" className="hidden" onChange={handlePDFUpload} />
-
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={isRecording ? '🎤 Listening...' : 'Prompt input...'}
-              className={`flex-1 px-5 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/50 rounded-2xl focus:ring-2 focus:ring-[#1D4241]/30 focus:border-transparent outline-none text-sm transition-all duration-300 placeholder:text-slate-400 shadow-sm ${
-                isRecording ? 'border-red-300 ring-2 ring-red-300/50' : ''
-              }`}
-              disabled={isLoading || isTyping || isRecording}
+              placeholder="Prompt input..."
+              className="flex-1 px-5 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/50 rounded-2xl focus:ring-2 focus:ring-[#1D4241]/30 focus:border-transparent outline-none text-sm transition-all duration-300 placeholder:text-slate-400 shadow-sm"
+              disabled={isLoading}
             />
-
             <button
               onClick={() => handleSend()}
-              disabled={isLoading || isTyping || isRecording || !input.trim()}
+              disabled={isLoading || !input.trim()}
               className={`px-5 py-3 rounded-2xl text-white transition-all duration-300 flex items-center gap-2 shadow-lg ${
-                isLoading || isTyping || isRecording || !input.trim() 
+                isLoading || !input.trim() 
                   ? 'bg-slate-300 cursor-not-allowed shadow-none' 
                   : 'bg-gradient-to-r from-[#1D4241] to-[#163535] hover:shadow-xl hover:shadow-[#1D4241]/20 hover:scale-[1.02] active:scale-[0.98]'
               }`}
@@ -700,20 +470,6 @@ export default function Chatbot() {
               <PaperAirplaneIcon className="h-4 w-4" />
             </button>
           </div>
-
-          {/* Recording indicator */}
-          {isRecording && (
-            <div className="mt-2 text-xs text-red-500 flex items-center gap-2 animate-pulse">
-              <span className="w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
-              Recording... Speak now
-            </div>
-          )}
-          {isSpeaking && (
-            <div className="mt-2 text-xs text-[#EF9C82] flex items-center gap-2 animate-pulse">
-              <span className="w-2 h-2 bg-[#EF9C82] rounded-full animate-ping"></span>
-              🔊 AI is speaking...
-            </div>
-          )}
         </div>
       </div>
 
@@ -733,11 +489,6 @@ export default function Chatbot() {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.5; }
         }
-        @keyframes ping {
-          0% { transform: scale(1); opacity: 1; }
-          100% { transform: scale(2); opacity: 0; }
-        }
-        .animate-ping { animation: ping 1s ease-in-out infinite; }
       `}</style>
     </div>
   )
