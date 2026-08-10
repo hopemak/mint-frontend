@@ -34,7 +34,7 @@ export default function Login() {
     const res = await login(values.email, values.password)
     if (res.ok) {
       toast.success(res.demo ? 'Signed in (demo mode — backend offline)' : 'Welcome back!')
-      navigate('/dashboard')
+      window.location.href = '/dashboard'
     } else {
       toast.error('Invalid email or password')
     }

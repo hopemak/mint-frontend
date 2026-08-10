@@ -11,15 +11,50 @@ export const api = axios.create({
   timeout: 30000,
 })
 
+// Add auth token to requests if available
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('mint_token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
 // ============================================================
-// ML API - AI Evaluation and Chat
+// AUTH API
+// ============================================================
+export const authAPI = {
+  login: (email, password) => api.post('/api/auth/login', { email, password }),
+  register: (data) => api.post('/api/auth/register', data),
+  logout: () => api.post('/api/auth/logout'),
+  refresh: () => api.post('/api/auth/refresh'),
+  me: () => api.get('/api/auth/me'),
+}
+
+// ============================================================
+// USER API
+// ============================================================
+export const userAPI = {
+  getMe: () => api.get('/api/users/me'),
+  updateProfile: (data) => api.put('/api/users/profile', data),
+  getAll: () => api.get('/api/users'),
+  getById: (id) => api.get(`/api/users/${id}`),
+  update: (id, data) => api.put(`/api/users/${id}`, data),
+  delete: (id) => api.delete(`/api/users/${id}`),
+  updateRole: (id, role) => api.put(`/api/users/${id}/role`, { role }),
+  updateStatus: (id, status) => api.put(`/api/users/${id}/status`, { status }),
+  getPermissions: (id) => api.get(`/api/users/${id}/permissions`),
+  getRoles: () => api.get('/api/users/roles'),
+}
+
+// ============================================================
+// ML API - Public AI (no auth required)
 // ============================================================
 export const mlAPI = {
   evaluate: (data) => {
     console.log('📤 Evaluating:', data.title)
     return api.post('/api/public/evaluate', data)
   },
-  
   chat: (message, context) => {
     console.log('💬 Chat message:', message)
     return api.post('/api/public/chat', { message, context: context || {} })
@@ -27,189 +62,213 @@ export const mlAPI = {
 }
 
 // ============================================================
-// DOCUMENT API - For document management
+// IDEA API
+// ============================================================
+export const ideaAPI = {
+  submit: (data) => api.post('/api/ideas', data),
+  getAll: () => api.get('/api/ideas'),
+  getById: (id) => api.get(`/api/ideas/${id}`),
+  update: (id, data) => api.put(`/api/ideas/${id}`, data),
+  delete: (id) => api.delete(`/api/ideas/${id}`),
+}
+
+// ============================================================
+// EVALUATION API
+// ============================================================
+export const evaluationAPI = {
+  getByIdeaId: (ideaId) => api.get(`/api/evaluations/idea/${ideaId}`),
+  create: (data) => api.post('/api/evaluations', data),
+  getAll: () => api.get('/api/evaluations'),
+  getById: (id) => api.get(`/api/evaluations/${id}`),
+}
+
+// ============================================================
+// DOCUMENT API
 // ============================================================
 export const documentAPI = {
-  // Upload a document
   upload: (file, metadata) => {
     const formData = new FormData()
     formData.append('file', file)
-    if (metadata) {
-      formData.append('metadata', JSON.stringify(metadata))
-    }
+    if (metadata) formData.append('metadata', JSON.stringify(metadata))
     return api.post('/api/documents/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+      headers: { 'Content-Type': 'multipart/form-data' },
     })
   },
-  
-  // Get all documents
-  getAll: () => {
-    return api.get('/api/documents')
-  },
-  
-  // Get document by ID
-  getById: (id) => {
-    return api.get(`/api/documents/${id}`)
-  },
-  
-  // Delete document
-  delete: (id) => {
-    return api.delete(`/api/documents/${id}`)
-  },
-  
-  // Update document
-  update: (id, data) => {
-    return api.put(`/api/documents/${id}`, data)
-  },
-  
-  // Download document
-  download: (id) => {
-    return api.get(`/api/documents/${id}/download`, {
-      responseType: 'blob',
-    })
-  },
+  getAll: () => api.get('/api/documents'),
+  getById: (id) => api.get(`/api/documents/${id}`),
+  update: (id, data) => api.put(`/api/documents/${id}`, data),
+  delete: (id) => api.delete(`/api/documents/${id}`),
+  download: (id) => api.get(`/api/documents/${id}/download`, { responseType: 'blob' }),
 }
 
 // ============================================================
-// WORKSPACE API - For workspace management
+// WORKSPACE API
 // ============================================================
 export const workspaceAPI = {
-  // Get all workspaces
-  getAll: () => {
-    return api.get('/api/workspace')
-  },
-  
-  // Get workspace by ID
-  getById: (id) => {
-    return api.get(`/api/workspace/${id}`)
-  },
-  
-  // Create workspace
-  create: (data) => {
-    return api.post('/api/workspace', data)
-  },
-  
-  // Update workspace
-  update: (id, data) => {
-    return api.put(`/api/workspace/${id}`, data)
-  },
-  
-  // Delete workspace
-  delete: (id) => {
-    return api.delete(`/api/workspace/${id}`)
-  },
-  
-  // Get workspace members
-  getMembers: (id) => {
-    return api.get(`/api/workspace/${id}/members`)
-  },
-  
-  // Add member to workspace
-  addMember: (id, userId) => {
-    return api.post(`/api/workspace/${id}/members`, { userId })
-  },
-  
-  // Remove member from workspace
-  removeMember: (id, userId) => {
-    return api.delete(`/api/workspace/${id}/members/${userId}`)
-  },
-  
-  // Get workspace projects
-  getProjects: (id) => {
-    return api.get(`/api/workspace/${id}/projects`)
-  },
+  getAll: () => api.get('/api/workspace'),
+  getById: (id) => api.get(`/api/workspace/${id}`),
+  create: (data) => api.post('/api/workspace', data),
+  update: (id, data) => api.put(`/api/workspace/${id}`, data),
+  delete: (id) => api.delete(`/api/workspace/${id}`),
+  getMembers: (id) => api.get(`/api/workspace/${id}/members`),
+  addMember: (id, userId) => api.post(`/api/workspace/${id}/members`, { userId }),
+  removeMember: (id, userId) => api.delete(`/api/workspace/${id}/members/${userId}`),
+  getProjects: (id) => api.get(`/api/workspace/${id}/projects`),
 }
 
 // ============================================================
-// USER API - User management
+// STARTUP API
 // ============================================================
-export const userAPI = {
-  // Get current user
-  getMe: () => {
-    return api.get('/api/users/me')
-  },
-  
-  // Update user profile
-  updateProfile: (data) => {
-    return api.put('/api/users/profile', data)
-  },
-  
-  // Get all users (admin)
-  getAll: () => {
-    return api.get('/api/users')
-  },
+export const startupAPI = {
+  getAll: () => api.get('/api/startups'),
+  getById: (id) => api.get(`/api/startups/${id}`),
+  create: (data) => api.post('/api/startups', data),
+  update: (id, data) => api.put(`/api/startups/${id}`, data),
+  delete: (id) => api.delete(`/api/startups/${id}`),
 }
 
 // ============================================================
-// AUTH API - Authentication
+// FUNDING API
 // ============================================================
-export const authAPI = {
-  // Login
-  login: (email, password) => {
-    return api.post('/api/auth/login', { email, password })
-  },
-  
-  // Register
-  register: (data) => {
-    return api.post('/api/auth/register', data)
-  },
-  
-  // Logout
-  logout: () => {
-    return api.post('/api/auth/logout')
-  },
-  
-  // Refresh token
-  refresh: () => {
-    return api.post('/api/auth/refresh')
-  },
+export const fundingAPI = {
+  getAll: () => api.get('/api/funding'),
+  getById: (id) => api.get(`/api/funding/${id}`),
+  create: (data) => api.post('/api/funding', data),
+  update: (id, data) => api.put(`/api/funding/${id}`, data),
+  delete: (id) => api.delete(`/api/funding/${id}`),
 }
 
 // ============================================================
-// IDEA API - Idea management
+// GRANT API
 // ============================================================
-export const ideaAPI = {
-  // Submit idea
-  submit: (data) => {
-    return api.post('/api/ideas', data)
-  },
-  
-  // Get all ideas
-  getAll: () => {
-    return api.get('/api/ideas')
-  },
-  
-  // Get idea by ID
-  getById: (id) => {
-    return api.get(`/api/ideas/${id}`)
-  },
-  
-  // Update idea
-  update: (id, data) => {
-    return api.put(`/api/ideas/${id}`, data)
-  },
-  
-  // Delete idea
-  delete: (id) => {
-    return api.delete(`/api/ideas/${id}`)
-  },
+export const grantAPI = {
+  getAll: () => api.get('/api/grants'),
+  getById: (id) => api.get(`/api/grants/${id}`),
+  create: (data) => api.post('/api/grants', data),
+  update: (id, data) => api.put(`/api/grants/${id}`, data),
+  delete: (id) => api.delete(`/api/grants/${id}`),
+  apply: (data) => api.post('/api/grants/apply', data),
+  match: (data) => api.post('/api/grants/match', data),
+  getApplications: () => api.get('/api/grants/applications'),
+  updateApplicationStatus: (id, status) => api.put(`/api/grants/applications/${id}/status`, { status }),
 }
 
 // ============================================================
-// EVALUATION API - Evaluation management
+// INVESTOR API
 // ============================================================
-export const evaluationAPI = {
-  // Get evaluation for idea
-  getByIdeaId: (ideaId) => {
-    return api.get(`/api/evaluations/idea/${ideaId}`)
-  },
-  
-  // Create evaluation
-  create: (data) => {
-    return api.post('/api/evaluations', data)
-  },
+export const investorAPI = {
+  getAll: () => api.get('/api/investors'),
+  getById: (id) => api.get(`/api/investors/${id}`),
+  create: (data) => api.post('/api/investors', data),
+  update: (id, data) => api.put(`/api/investors/${id}`, data),
+  delete: (id) => api.delete(`/api/investors/${id}`),
+}
+
+// ============================================================
+// MENTOR API
+// ============================================================
+export const mentorAPI = {
+  getAll: () => api.get('/api/mentors'),
+  getById: (id) => api.get(`/api/mentors/${id}`),
+  create: (data) => api.post('/api/mentors', data),
+  update: (id, data) => api.put(`/api/mentors/${id}`, data),
+  delete: (id) => api.delete(`/api/mentors/${id}`),
+  match: (data) => api.post('/api/mentors/match', data),
+}
+
+// ============================================================
+// MESSAGE API
+// ============================================================
+export const messageAPI = {
+  getAll: () => api.get('/api/messages'),
+  getById: (id) => api.get(`/api/messages/${id}`),
+  send: (data) => api.post('/api/messages', data),
+  delete: (id) => api.delete(`/api/messages/${id}`),
+  getConversations: () => api.get('/api/messages/conversations'),
+}
+
+// ============================================================
+// SESSION API
+// ============================================================
+export const sessionAPI = {
+  getAll: () => api.get('/api/sessions'),
+  getById: (id) => api.get(`/api/sessions/${id}`),
+  create: (data) => api.post('/api/sessions', data),
+  update: (id, data) => api.put(`/api/sessions/${id}`, data),
+  delete: (id) => api.delete(`/api/sessions/${id}`),
+}
+
+// ============================================================
+// TASK API
+// ============================================================
+export const taskAPI = {
+  getAll: () => api.get('/api/tasks'),
+  getById: (id) => api.get(`/api/tasks/${id}`),
+  create: (data) => api.post('/api/tasks', data),
+  update: (id, data) => api.put(`/api/tasks/${id}`, data),
+  delete: (id) => api.delete(`/api/tasks/${id}`),
+}
+
+// ============================================================
+// EVENT API
+// ============================================================
+export const eventAPI = {
+  getAll: () => api.get('/api/events'),
+  getById: (id) => api.get(`/api/events/${id}`),
+  create: (data) => api.post('/api/events', data),
+  update: (id, data) => api.put(`/api/events/${id}`, data),
+  delete: (id) => api.delete(`/api/events/${id}`),
+}
+
+// ============================================================
+// PAPER API
+// ============================================================
+export const paperAPI = {
+  getAll: () => api.get('/api/papers'),
+  getById: (id) => api.get(`/api/papers/${id}`),
+  create: (data) => api.post('/api/papers', data),
+  update: (id, data) => api.put(`/api/papers/${id}`, data),
+  delete: (id) => api.delete(`/api/papers/${id}`),
+}
+
+// ============================================================
+// ANALYTICS API
+// ============================================================
+export const analyticsAPI = {
+  getDashboard: () => api.get('/api/analytics/dashboard'),
+  getReports: () => api.get('/api/analytics/reports'),
+  getMetrics: () => api.get('/api/analytics/metrics'),
+}
+
+// ============================================================
+// DASHBOARD API
+// ============================================================
+export const dashboardAPI = {
+  getStats: () => api.get('/api/dashboard/stats'),
+  getOverview: () => api.get('/api/dashboard/overview'),
+  getRecent: () => api.get('/api/dashboard/recent'),
+}
+
+// ============================================================
+// AUDIT API
+// ============================================================
+export const auditAPI = {
+  getLogs: () => api.get('/api/audit/logs'),
+  getUserLogs: (userId) => api.get(`/api/audit/logs/user/${userId}`),
+  getActionLogs: (action) => api.get(`/api/audit/logs/action/${action}`),
+  getSummary: () => api.get('/api/audit/summary'),
+  getSecurityAlerts: () => api.get('/api/audit/security-alerts'),
+}
+
+// ============================================================
+// VERSION CONTROL API
+// ============================================================
+export const versionControlAPI = {
+  getAll: () => api.get('/api/version-control'),
+  getById: (id) => api.get(`/api/version-control/${id}`),
+  create: (data) => api.post('/api/version-control', data),
+  update: (id, data) => api.put(`/api/version-control/${id}`, data),
+  delete: (id) => api.delete(`/api/version-control/${id}`),
 }
 
 // ============================================================
