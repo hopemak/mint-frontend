@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
-import { XMarkIcon, SparklesIcon, CalendarDaysIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
+import { XMarkIcon, SparklesIcon, CalendarDaysIcon, CheckCircleIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline'
 import { PageHeader, LoadingBlock, ErrorNotice } from '../../components/ui.jsx'
-import { mentorAPI, investorAPI, grantAPI, paperAPI, eventAPI, startupAPI, mlAPI } from '../../services/api.js'
+import { mentorAPI, investorAPI, grantAPI, paperAPI, eventAPI, startupAPI, messageAPI, mlAPI } from '../../services/api.js'
 
 const courses = [
   { id: 1, title: 'Advanced Product Analytics', progress: 45 },
@@ -10,6 +10,7 @@ const courses = [
 ]
 
 export default function Recommendations() {
+  const [startup, setStartup] = useState(null)
   const [mentors, setMentors] = useState([])
   const [investors, setInvestors] = useState([])
   const [grants, setGrants] = useState([])
@@ -18,11 +19,19 @@ export default function Recommendations() {
   const [loading, setLoading] = useState(true)
   const [isFallback, setIsFallback] = useState(false)
   const [registeringId, setRegisteringId] = useState(null)
+  const [applyingGrantId, setApplyingGrantId] = useState(null)
 
   const [assistantOpen, setAssistantOpen] = useState(false)
   const [chatMessages, setChatMessages] = useState([])
   const [chatInput, setChatInput] = useState('')
   const [chatSending, setChatSending] = useState(false)
+
+  const [mentorModal, setMentorModal] = useState(null)
+  const [mentorDetail, setMentorDetail] = useState(null)
+  const [mentorDetailLoading, setMentorDetailLoading] = useState(false)
+  const [mentorThread, setMentorThread] = useState([])
+  const [mentorMsgInput, setMentorMsgInput] = useState('')
+  const [mentorMsgSending, setMentorMsgSending] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -31,17 +40,19 @@ export default function Recommendations() {
       try {
         const { data: startupsRes } = await startupAPI.getMyStartups()
         const startups = (startupsRes && startupsRes.data) ? startupsRes.data : startupsRes
-        const startup = Array.isArray(startups) ? startups[0] : null
+        const primary = Array.isArray(startups) ? startups[0] : null
 
-        if (!startup) {
+        if (!primary) {
           if (!cancelled) {
+            setStartup(null)
             setMentors([]); setInvestors([]); setGrants([]); setPapers([]); setEvents([])
             setIsFallback(true)
           }
           return
         }
+        if (!cancelled) setStartup(primary)
 
-        const startupData = { sector: startup.sector }
+        const startupData = { sector: primary.sector }
 
         const [mentorRes, investorRes, grantRes, paperRes, eventRes] = await Promise.all([
           mentorAPI.match(startupData),
@@ -105,6 +116,63 @@ export default function Recommendations() {
     }
   }
 
+  const handleApplyGrant = async (grant) => {
+    if (!startup) {
+      toast.error('Create a startup first to apply for grants')
+      return
+    }
+    setApplyingGrantId(grant.id)
+    try {
+      await grantAPI.apply({
+        grant_id: grant.id,
+        startup_id: startup.startup_id,
+        amount_requested: grant.amount,
+      })
+      toast.success('Application submitted')
+    } catch (err) {
+      const msg = err?.response?.data?.error || 'Could not submit application'
+      toast.error(msg)
+    } finally {
+      setApplyingGrantId(null)
+    }
+  }
+
+  const openMentorProfile = async (mentor) => {
+    setMentorModal(mentor)
+    setMentorDetail(null)
+    setMentorThread([])
+    setMentorDetailLoading(true)
+    try {
+      const [detailRes, threadRes] = await Promise.all([
+        mentorAPI.getById(mentor.id),
+        messageAPI.getThread(mentor.id),
+      ])
+      const detail = (detailRes.data && detailRes.data.data) || detailRes.data
+      const thread = (threadRes.data && threadRes.data.data) || []
+      setMentorDetail(detail)
+      setMentorThread(Array.isArray(thread) ? thread : [])
+    } catch (err) {
+      toast.error('Could not load mentor profile')
+    } finally {
+      setMentorDetailLoading(false)
+    }
+  }
+
+  const sendMentorMessage = async () => {
+    const text = mentorMsgInput.trim()
+    if (!text || !mentorModal || mentorMsgSending) return
+    setMentorMsgSending(true)
+    try {
+      await messageAPI.send({ mentor_id: mentorModal.id, text })
+      setMentorThread((prev) => [...prev, { from: 'me', text, created_at: new Date().toISOString() }])
+      setMentorMsgInput('')
+    } catch (err) {
+      toast.error('Could not send message')
+    } finally {
+      setMentorMsgSending(false)
+    }
+  }
+
   const sendChatMessage = async () => {
     const text = chatInput.trim()
     if (!text || chatSending) return
@@ -137,22 +205,22 @@ export default function Recommendations() {
         <section className="mb-8">
           <h2 className="font-heading font-semibold text-lg text-ink dark:text-white mb-4">Recommended Mentors</h2>
           {mentors.length === 0 ? (
-            <p className="text-sm text-slate-400">No mentor matches yet — create a startup to get personalized matches.</p>
+            <p className="text-sm text-slate-500">No mentor matches yet — create a startup to get personalized matches.</p>
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {mentors.map((m) => (
                 <div key={m.id} className="card p-5">
                   <div className="flex items-start justify-between mb-3">
-                    <div className="h-11 w-11 rounded-full bg-primary text-white flex items-center justify-center font-semibold">
+                    <div className="h-11 w-11 rounded-full bg-primary text-white flex items-center justify-center font-semibold text-sm">
                       {(m.name || '?').split(' ').map((p) => p[0]).slice(0, 2).join('')}
                     </div>
-                    <span className="h-10 w-10 rounded-full border-4 border-emerald-400 flex items-center justify-center text-[10px] font-semibold text-emerald-600">
+                    <span className="h-10 w-10 rounded-full border-4 border-emerald-400 flex items-center justify-center text-[11px] font-semibold text-emerald-600">
                       {m.match}%
                     </span>
                   </div>
-                  <p className="font-medium text-ink dark:text-white">{m.name}</p>
+                  <p className="font-medium text-base text-ink dark:text-white">{m.name}</p>
                   <p className="text-sm text-slate-500 mb-3">{m.title}</p>
-                  <button onClick={() => toast('Mentor profiles coming soon')} className="btn-outline w-full text-sm">View Profile</button>
+                  <button onClick={() => openMentorProfile(m)} className="btn-outline w-full text-sm">View Profile</button>
                 </div>
               ))}
             </div>
@@ -162,19 +230,19 @@ export default function Recommendations() {
         <section className="mb-8">
           <h2 className="font-heading font-semibold text-lg text-ink dark:text-white mb-4">Recommended Investors</h2>
           {investors.length === 0 ? (
-            <p className="text-sm text-slate-400">No investor matches yet.</p>
+            <p className="text-sm text-slate-500">No investor matches yet.</p>
           ) : (
             <div className="grid sm:grid-cols-2 gap-4">
               {investors.map((inv) => (
                 <div key={inv.id} className="card p-5 flex items-center justify-between">
                   <div>
-                    <p className="font-medium text-ink dark:text-white">{inv.name}</p>
+                    <p className="font-medium text-base text-ink dark:text-white">{inv.name}</p>
                     <p className="text-sm text-slate-500">Focus: {inv.focus}</p>
-                    <p className="text-xs text-slate-400">Investment Stage: {inv.stage}</p>
+                    <p className="text-sm text-slate-400">Investment Stage: {inv.stage}</p>
                   </div>
                   <div className="text-right">
                     <span className="badge bg-emerald-100 text-emerald-700 mb-2 block w-fit ml-auto">{inv.match}% Match</span>
-                    <button onClick={() => toast('Connect feature coming soon')} className="btn-outline text-sm">Connect</button>
+                    <button onClick={() => toast('Direct investor messaging is not available yet')} className="btn-outline text-sm">Connect</button>
                   </div>
                 </div>
               ))}
@@ -185,19 +253,25 @@ export default function Recommendations() {
         <section className="mb-8">
           <h2 className="font-heading font-semibold text-lg text-ink dark:text-white mb-4">Recommended Grants</h2>
           {grants.length === 0 ? (
-            <p className="text-sm text-slate-400">No grant matches yet.</p>
+            <p className="text-sm text-slate-500">No grant matches yet.</p>
           ) : (
             <div className="grid sm:grid-cols-2 gap-4">
               {grants.slice(0, 2).map((g) => (
                 <div key={g.id} className="card p-5">
                   <div className="flex items-start justify-between mb-2">
-                    <p className="font-medium text-ink dark:text-white">{g.name}</p>
+                    <p className="font-medium text-base text-ink dark:text-white">{g.name}</p>
                     <span className="badge bg-red-100 text-red-600">Deadline: {g.deadline}</span>
                   </div>
                   <p className="text-sm text-slate-500 mb-3">{g.tags?.join(' · ')}</p>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-ink dark:text-white">${(g.amount || 0).toLocaleString()} max</span>
-                    <button onClick={() => toast('Grant applications coming soon')} className="btn-primary text-sm">Apply Now</button>
+                    <button
+                      onClick={() => handleApplyGrant(g)}
+                      disabled={applyingGrantId === g.id}
+                      className="btn-primary text-sm disabled:opacity-50"
+                    >
+                      {applyingGrantId === g.id ? 'Submitting...' : 'Apply Now'}
+                    </button>
                   </div>
                 </div>
               ))}
@@ -209,16 +283,16 @@ export default function Recommendations() {
           <section className="lg:col-span-1">
             <h2 className="font-heading font-semibold text-lg text-ink dark:text-white mb-4">Research Papers</h2>
             <div className="space-y-3">
-              {papers.length === 0 && <p className="text-sm text-slate-400">No paper matches yet.</p>}
+              {papers.length === 0 && <p className="text-sm text-slate-500">No paper matches yet.</p>}
               {papers.map((r) => (
                 <div key={r.id} className="card p-4">
                   <p className="font-medium text-sm text-ink dark:text-white">{r.title}</p>
                   <p className="text-xs text-slate-400 mb-1.5">By {r.author}</p>
-                  <p className="text-xs text-slate-500 mb-2">Key takeaway: {r.takeaway}</p>
+                  <p className="text-sm text-slate-500 mb-2">Key takeaway: {r.takeaway}</p>
                   {r.url ? (
-                    <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium">Read More →</a>
+                    <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary font-medium">Read More →</a>
                   ) : (
-                    <span className="text-xs text-slate-400">No link available</span>
+                    <span className="text-sm text-slate-400">No link available</span>
                   )}
                 </div>
               ))}
@@ -228,7 +302,7 @@ export default function Recommendations() {
           <section className="lg:col-span-1">
             <h2 className="font-heading font-semibold text-lg text-ink dark:text-white mb-4">Startup Events</h2>
             <div className="space-y-3">
-              {events.length === 0 && <p className="text-sm text-slate-400">No events right now.</p>}
+              {events.length === 0 && <p className="text-sm text-slate-500">No events right now.</p>}
               {events.map((e) => (
                 <div key={e.id} className="card p-4 flex items-center gap-3">
                   <div className="h-11 w-11 rounded-lg bg-primary/10 text-primary flex flex-col items-center justify-center shrink-0">
@@ -237,7 +311,7 @@ export default function Recommendations() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm text-ink dark:text-white truncate">{e.title}</p>
-                    <p className="text-xs text-slate-500">{e.location} · {e.time}</p>
+                    <p className="text-sm text-slate-500">{e.location} · {e.time}</p>
                   </div>
                   {e.registered ? (
                     <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 px-3 py-1.5">
@@ -267,8 +341,8 @@ export default function Recommendations() {
                     <div className="h-full bg-primary" style={{ width: `${c.progress}%` }} />
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500">{c.progress === 0 ? 'Not Started' : `${c.progress}% Completed`}</span>
-                    <button onClick={() => toast('Courses coming soon')} className="text-xs text-primary font-medium">Continue Learning</button>
+                    <span className="text-sm text-slate-500">{c.progress === 0 ? 'Not Started' : `${c.progress}% Completed`}</span>
+                    <button onClick={() => toast('Courses coming soon')} className="text-sm text-primary font-medium">Continue Learning</button>
                   </div>
                 </div>
               ))}
@@ -276,6 +350,57 @@ export default function Recommendations() {
           </section>
         </div>
       </div>
+
+      {mentorModal && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 p-4" onClick={() => setMentorModal(null)}>
+          <div className="card w-full max-w-md p-5 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-heading font-semibold text-lg text-ink dark:text-white">{mentorModal.name}</h3>
+              <button onClick={() => setMentorModal(null)} className="text-slate-400 hover:text-slate-600">
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+            {mentorDetailLoading ? (
+              <p className="text-sm text-slate-500">Loading...</p>
+            ) : (
+              <>
+                <p className="text-sm text-slate-500 mb-1">{mentorDetail?.expertise || mentorModal.title}</p>
+                {mentorDetail?.bio && <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">{mentorDetail.bio}</p>}
+
+                <div className="border-t border-slate-100 dark:border-primary-700 pt-4 mt-2">
+                  <p className="text-sm font-medium text-ink dark:text-white mb-2">Messages</p>
+                  <div className="space-y-2 max-h-48 overflow-y-auto mb-3">
+                    {mentorThread.length === 0 && <p className="text-sm text-slate-400">No messages yet — say hello.</p>}
+                    {mentorThread.map((msg, i) => (
+                      <div key={i} className={`rounded-lg p-2.5 text-sm max-w-[85%] ${msg.from === 'me' ? 'bg-primary text-white ml-auto' : 'bg-slate-50 dark:bg-primary-700 text-slate-600 dark:text-slate-300'}`}>
+                        {msg.text}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      value={mentorMsgInput}
+                      onChange={(e) => setMentorMsgInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') sendMentorMessage() }}
+                      placeholder="Type a message..."
+                      className="input text-sm flex-1"
+                      disabled={mentorMsgSending}
+                    />
+                    <button
+                      onClick={sendMentorMessage}
+                      disabled={mentorMsgSending || !mentorMsgInput.trim()}
+                      className="btn-primary px-3 disabled:opacity-50"
+                      aria-label="Send message"
+                    >
+                      <PaperAirplaneIcon className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {!assistantOpen && (
         <button
@@ -299,7 +424,7 @@ export default function Recommendations() {
           </div>
           <div className="space-y-2 max-h-72 overflow-y-auto mb-3">
             {chatMessages.length === 0 && (
-              <p className="text-sm text-slate-400">Ask me anything about your matches or startup.</p>
+              <p className="text-sm text-slate-500">Ask me anything about your matches or startup.</p>
             )}
             {chatMessages.map((m, i) => (
               <div key={i} className={`rounded-xl p-3 text-sm max-w-[90%] ${m.role === 'user' ? 'bg-primary text-white ml-auto' : 'bg-slate-50 dark:bg-primary-700 text-slate-600 dark:text-slate-300'}`}>
