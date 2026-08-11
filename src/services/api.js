@@ -88,19 +88,17 @@ export const evaluationAPI = {
 // DOCUMENT API
 // ============================================================
 export const documentAPI = {
+  getAll: () => api.get('/api/documents'),
   upload: (file, metadata) => {
     const formData = new FormData()
     formData.append('file', file)
     if (metadata) formData.append('metadata', JSON.stringify(metadata))
-    return api.post('/api/documents/upload/', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+    return api.post('/api/documents/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
     })
   },
-  getAll: () => api.get('/api/documents'),
-  getById: (id) => api.get(`/api/documents/${id}/`),
-  update: (id, data) => api.put(`/api/documents/${id}/`, data),
-  delete: (id) => api.delete(`/api/documents/${id}/`),
-  download: (id) => api.get(`/api/documents/${id}/download/`, { responseType: 'blob' }),
+  getById: (id) => api.get('/api/documents/' + id),
+  delete: (id) => api.delete('/api/documents/' + id),
 }
 
 // ============================================================
@@ -108,14 +106,9 @@ export const documentAPI = {
 // ============================================================
 export const workspaceAPI = {
   getAll: () => api.get('/api/workspace/'),
-  getById: (id) => api.get(`/api/workspace/${id}/`),
-  create: (data) => api.post('/api/workspace/', data),
-  update: (id, data) => api.put(`/api/workspace/${id}/`, data),
-  delete: (id) => api.delete(`/api/workspace/${id}/`),
-  getMembers: (id) => api.get(`/api/workspace/${id}/members/`),
-  addMember: (id, userId) => api.post(`/api/workspace/${id}/members/`, { userId }),
-  removeMember: (id, userId) => api.delete(`/api/workspace/${id}/members/${userId}/`),
-  getProjects: (id) => api.get(`/api/workspace/${id}/projects/`),
+  getById: (id) => api.get('/api/workspace/' + id),
+  getComments: (projectId) => api.get('/api/workspace/' + projectId + '/comments'),
+  addComment: (projectId, text, authorName) => api.post('/api/workspace/' + projectId + '/comments', { text, author_name: authorName }),
 }
 
 // ============================================================
@@ -207,11 +200,12 @@ export const sessionAPI = {
 // TASK API
 // ============================================================
 export const taskAPI = {
-  getAll: () => api.get('/api/tasks/'),
-  getById: (id) => api.get(`/api/tasks/${id}/`),
+  getAll: (startupId) => api.get('/api/tasks/' + (startupId ? '?startup_id=' + startupId : '')),
+  getById: (id) => api.get('/api/tasks/' + id),
   create: (data) => api.post('/api/tasks/', data),
-  update: (id, data) => api.put(`/api/tasks/${id}/`, data),
-  delete: (id) => api.delete(`/api/tasks/${id}/`),
+  update: (id, data) => api.put('/api/tasks/' + id, data),
+  delete: (id) => api.delete('/api/tasks/' + id),
+  getBurndown: () => api.get('/api/tasks/burndown'),
 }
 
 // ============================================================
@@ -284,3 +278,7 @@ export const versionControlAPI = {
 // DEFAULT EXPORT
 // ============================================================
 export default api
+
+export const systemAPI = {
+  listRoutes: () => api.get('/api/system/routes'),
+}

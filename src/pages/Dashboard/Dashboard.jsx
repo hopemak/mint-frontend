@@ -24,6 +24,7 @@ import {
   Cell,
 } from 'recharts'
 import { useAuth } from '../../context/AuthContext.jsx'
+import { eventAPI } from '../../services/api.js'
 import { dashboardAPI } from '../../services/api.js'
 import {
   kpis as fallbackKpis,
@@ -50,6 +51,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null)
   const [trends, setTrends] = useState(null)
   const [analytics, setAnalytics] = useState(null)
+  const [realEvents, setRealEvents] = useState(null)
 
   // Fallback data
   const kpis = stats || fallbackKpis
@@ -66,11 +68,11 @@ export default function Dashboard() {
         color: COLORS[i % COLORS.length],
       }))
     : fallbackFundingDonut
-  const upcomingEvents = fallbackUpcomingEvents
+  const upcomingEvents = realEvents !== null ? realEvents : fallbackUpcomingEvents
   const activityFeed = fallbackActivityFeed
 
   const totalFunds = fundingDonut.reduce((sum, d) => sum + d.value, 0)
-  const totalRaised = ((stats?.total_funding || fallbackKpis.totalFunding) / 1e6).toFixed(1)
+  const totalRaised = ((stats?.total_funding ?? fallbackKpis.totalFunding) / 1e6).toFixed(1)
 
   useEffect(() => {
     let mounted = true
@@ -86,6 +88,31 @@ export default function Dashboard() {
         if (statsRes?.data?.data) setStats(statsRes.data.data)
         if (trendsRes?.data?.data) setTrends(trendsRes.data.data)
         if (analyticsRes?.data?.data) setAnalytics(analyticsRes.data.data)
+
+        try {
+          const eventsRes = await eventAPI.getAll()
+          const eventsList = (eventsRes.data && eventsRes.data.data) ? eventsRes.data.data : []
+          const now = new Date()
+          const upcoming = eventsList
+            .map((e) => {
+              const y = Number(e.year), m = Number(e.month), d = Number(e.day)
+              const date = new Date(y, (m || 1) - 1, d || 1)
+              return { ...e, _date: date }
+            })
+            .filter((e) => !isNaN(e._date.getTime()) && e._date >= new Date(now.getFullYear(), now.getMonth(), now.getDate()))
+            .sort((a, b) => a._date - b._date)
+          if (mounted) {
+            setRealEvents(upcoming.map((e) => ({
+              id: e.event_id,
+              title: e.title,
+              type: 'Event',
+              when: `${e.month}/${e.day}/${e.year} · ${e.time}`,
+              attendees: e.registered ? 'You\'re registered' : 'Open',
+            })))
+          }
+        } catch (e) {
+          if (mounted) setRealEvents([])
+        }
       } catch (e) {
         console.warn('Dashboard fetch failed, using fallback data:', e)
       } finally {
@@ -119,12 +146,12 @@ export default function Dashboard() {
         <div className="lg:col-span-2 card p-5">
           <div className="flex items-center justify-between mb-1">
             <h2 className="font-heading font-semibold text-ink dark:text-white">Upcoming Events</h2>
-            <Link to="#" className="text-sm text-primary font-medium">See all</Link>
+            <Link to="/recommendations" className="text-sm text-primary font-medium">See all</Link>
           </div>
           <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
             Stay on top of workshops and mentor meetings.
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-h-96 overflow-y-auto pr-1">
             {upcomingEvents.map((e, i) => {
               const tone = eventTone[i % eventTone.length]
               const Icon = tone.icon
@@ -195,7 +222,6 @@ export default function Dashboard() {
           {stats && (
             <div className="mt-auto pt-4 border-t border-white/10">
               <p className="text-xs text-white/70">Success Rate: <span className="font-semibold">{stats.success_rate}%</span></p>
-              <p className="text-xs text-white/70">Jobs Created: <span className="font-semibold">{stats.total_jobs_created}</span></p>
             </div>
           )}
         </div>

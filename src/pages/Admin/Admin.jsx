@@ -643,9 +643,15 @@ export default function Admin() {
         {showCreateEvent && (
           <form onSubmit={handleCreateEvent} className="card p-4 mb-4 grid sm:grid-cols-2 lg:grid-cols-6 gap-3">
             <input required placeholder="Event title" className="input text-sm" value={eventForm.title} onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })} />
-            <input required type="number" placeholder="Day (1-31)" className="input text-sm" value={eventForm.day} onChange={(e) => setEventForm({ ...eventForm, day: e.target.value })} />
-            <input required type="number" placeholder="Month (1-12)" className="input text-sm" value={eventForm.month} onChange={(e) => setEventForm({ ...eventForm, month: e.target.value })} />
-            <input required type="number" placeholder="Year" className="input text-sm" value={eventForm.year} onChange={(e) => setEventForm({ ...eventForm, year: e.target.value })} />
+            <input
+              required
+              type="date"
+              className="input text-sm"
+              onChange={(e) => {
+                const [y, m, d] = e.target.value.split('-')
+                setEventForm({ ...eventForm, year: y, month: String(Number(m)), day: String(Number(d)) })
+              }}
+            />
             <input required placeholder="Location" className="input text-sm" value={eventForm.location} onChange={(e) => setEventForm({ ...eventForm, location: e.target.value })} />
             <input required type="time" placeholder="Time" className="input text-sm" value={eventForm.time} onChange={(e) => setEventForm({ ...eventForm, time: e.target.value })} />
             <div className="flex gap-2 sm:col-span-2 lg:col-span-6">
