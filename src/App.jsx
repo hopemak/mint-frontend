@@ -1,6 +1,6 @@
+import { Toaster } from 'react-hot-toast';
 import React from 'react'
 import { Routes, Route } from 'react-router-dom'
-import { Toaster } from 'react-hot-toast'
 
 import Layout from './components/Layout.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
@@ -13,6 +13,8 @@ import IdeaSubmission from './pages/Dashboard/IdeaSubmission.jsx'
 import Profile from './pages/Dashboard/Profile.jsx'
 import Startups from './pages/Startups/Startups.jsx'
 import CreateStartup from './pages/Startups/CreateStartup.jsx'
+import StartupDetail from './pages/Startups/StartupDetail.jsx'
+import EditStartup from './pages/Startups/EditStartup.jsx'
 import Evaluation from './pages/Evaluation/Evaluation.jsx'
 import Workspace from './pages/Workspace/Workspace.jsx'
 import PrototypeCenter from './pages/Prototype/PrototypeCenter.jsx'
@@ -44,6 +46,8 @@ export default function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/startups" element={<Startups />} />
           <Route path="/startups/create" element={<CreateStartup />} />
+          <Route path="/startups/:id" element={<StartupDetail />} />
+          <Route path="/startups/:id/edit" element={<EditStartup />} />
           <Route path="/evaluate" element={<Evaluation />} />
           <Route path="/workspace" element={<Workspace />} />
           <Route path="/prototype" element={<PrototypeCenter />} />
