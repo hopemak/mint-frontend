@@ -178,11 +178,8 @@ export const mentorAPI = {
 // MESSAGE API
 // ============================================================
 export const messageAPI = {
-  getAll: () => api.get('/api/messages/'),
-  getById: (id) => api.get(`/api/messages/${id}/`),
-  send: (data) => api.post('/api/messages/', data),
-  delete: (id) => api.delete(`/api/messages/${id}/`),
-  getConversations: () => api.get('/api/messages/conversations'),
+  getThread: (mentorId) => api.get(`/api/messages/${mentorId}`),
+  send: (mentorId, text) => api.post(`/api/messages/${mentorId}`, { text }),
 }
 
 // ============================================================
