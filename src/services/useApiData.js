@@ -18,7 +18,7 @@ export function useApiData(endpoint, fallback = null) {
     setError(null)
     try {
       const { data: res } = await api.get(endpoint)
-      setData(res)
+      setData(res.data?.data || res.data || res)
       setIsFallback(false)
     } catch (err) {
       setError(err)

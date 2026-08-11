@@ -19,8 +19,16 @@ import { PageHeader, StatCard, LoadingBlock, ErrorNotice } from '../../component
 import { useApiData } from '../../services/useApiData.js'
 import { analytics as sampleAnalytics } from '../../data/sampleData.js'
 
+
 export default function Analytics() {
-  const { data, loading, isFallback } = useApiData('/api/analytics', sampleAnalytics)
+
+
+  const { data, loading, error, isFallback } = useApiData('/api/analytics')
+
+  if (loading) return <LoadingBlock />
+  if (error) return <div className="p-8 text-center text-red-500">Error: {error}</div>
+  if (!data) return <div className="p-8 text-center text-slate-500">No data available</div>
+
 
   if (loading) return <LoadingBlock />
 
@@ -30,18 +38,18 @@ export default function Analytics() {
       {isFallback && <ErrorNotice />}
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
-        <StatCard icon={RocketLaunchIcon} label="Active Startups" value={data.activeStartups} />
-        <StatCard icon={LightBulbIcon} label="Ideas Submitted" value={data.ideasSubmitted} />
-        <StatCard icon={BanknotesIcon} label="Total Funding" value={data.totalFunding} />
-        <StatCard icon={UserGroupIcon} label="Mentors" value={data.mentors} />
-        <StatCard icon={BriefcaseIcon} label="Jobs Created" value={data.jobsCreated} />
+        <StatCard icon={RocketLaunchIcon} label="Active Startups" value={(data?.activeStartups ?? 0)} />
+        <StatCard icon={LightBulbIcon} label="Ideas Submitted" value={(data?.ideasSubmitted ?? 0)} />
+        <StatCard icon={BanknotesIcon} label="Total Funding" value={(data?.totalFunding ?? "$0")} />
+        <StatCard icon={UserGroupIcon} label="Mentors" value={(data?.mentors ?? 0)} />
+        <StatCard icon={BriefcaseIcon} label="Jobs Created" value={(data?.jobsCreated ?? 0)} />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4 mb-4">
         <div className="lg:col-span-2 card p-5">
           <h2 className="font-heading font-semibold text-ink dark:text-white mb-4">Startup Growth Trends</h2>
           <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={data.growthTrend}>
+            <LineChart data={(data?.growthTrend ?? [])}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
               <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
@@ -55,14 +63,14 @@ export default function Analytics() {
           <h2 className="font-heading font-semibold text-ink dark:text-white mb-4">Funding Distribution</h2>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
-              <Pie data={data.fundingByStage} dataKey="value" innerRadius={45} outerRadius={75} paddingAngle={2}>
-                {data.fundingByStage.map((d) => <Cell key={d.name} fill={d.color} />)}
+              <Pie data={(data?.fundingByStage ?? [])} dataKey="value" innerRadius={45} outerRadius={75} paddingAngle={2}>
+                {(data?.fundingByStage ?? []).map((d) => <Cell key={d.name} fill={d.color} />)}
               </Pie>
               <Tooltip />
             </PieChart>
           </ResponsiveContainer>
           <div className="space-y-1.5 mt-2">
-            {data.fundingByStage.map((d) => (
+            {(data?.fundingByStage ?? []).map((d) => (
               <div key={d.name} className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2 text-slate-500">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ background: d.color }} />{d.name}
@@ -78,7 +86,7 @@ export default function Analytics() {
         <div className="card p-5">
           <h2 className="font-heading font-semibold text-ink dark:text-white mb-4">Idea Submissions Overview</h2>
           <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={data.submissionsByQuarter}>
+            <BarChart data={(data?.submissionsByQuarter ?? [])}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
               <XAxis dataKey="q" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
@@ -93,7 +101,7 @@ export default function Analytics() {
         <div className="card p-5">
           <h2 className="font-heading font-semibold text-ink dark:text-white mb-4">Startup Success Forecast</h2>
           <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={data.forecast}>
+            <LineChart data={(data?.eventRegistrations ?? []) || []}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
               <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
@@ -119,7 +127,7 @@ export default function Analytics() {
               </tr>
             </thead>
             <tbody>
-              {data.regions.map((r) => (
+              {(data?.regions ?? []).map((r) => (
                 <tr key={r.region} className="border-b border-slate-50 dark:border-primary-700 last:border-0">
                   <td className="py-2.5 pr-4 font-medium text-ink dark:text-white">{r.region}</td>
                   <td className="py-2.5 pr-4 text-slate-500">{r.index}</td>

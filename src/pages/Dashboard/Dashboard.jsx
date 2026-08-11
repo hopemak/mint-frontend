@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   SparklesIcon,
@@ -23,13 +23,15 @@ import {
   Pie,
   Cell,
 } from 'recharts'
+import { useAuth } from '../../context/AuthContext.jsx'
+import { dashboardAPI } from '../../services/api.js'
 import {
-  kpis,
-  startupProgress,
-  kpiTrend,
-  fundingDonut,
-  upcomingEvents,
-  activityFeed,
+  kpis as fallbackKpis,
+  startupProgress as fallbackStartupProgress,
+  kpiTrend as fallbackKpiTrend,
+  fundingDonut as fallbackFundingDonut,
+  upcomingEvents as fallbackUpcomingEvents,
+  activityFeed as fallbackActivityFeed,
 } from '../../data/sampleData.js'
 
 const activityIcons = [RocketLaunchIcon, BellAlertIcon, SparklesIcon]
@@ -40,9 +42,61 @@ const eventTone = [
   { icon: AcademicCapIcon, bg: 'bg-accent-500' },
 ]
 
+const COLORS = ['#1D4241', '#4C8884', '#EF9C82', '#C7DAD8', '#8B5CF6', '#10B981', '#F59E0B']
+
 export default function Dashboard() {
+  const { user } = useAuth()
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState(null)
+  const [trends, setTrends] = useState(null)
+  const [analytics, setAnalytics] = useState(null)
+
+  // Fallback data
+  const kpis = stats || fallbackKpis
+  const startupProgress = trends
+    ? trends.labels.map((m, i) => ({ month: m, progress: trends.applications[i] }))
+    : fallbackStartupProgress
+  const kpiTrend = trends
+    ? trends.labels.map((m, i) => ({ month: m, sessions: trends.applications[i] * 30000, ideas: trends.approvals[i] * 10 }))
+    : fallbackKpiTrend
+  const fundingDonut = analytics
+    ? Object.entries(analytics.sector_distribution || {}).slice(0, 4).map(([name, value], i) => ({
+        name,
+        value,
+        color: COLORS[i % COLORS.length],
+      }))
+    : fallbackFundingDonut
+  const upcomingEvents = fallbackUpcomingEvents
+  const activityFeed = fallbackActivityFeed
+
   const totalFunds = fundingDonut.reduce((sum, d) => sum + d.value, 0)
-  const totalRaised = (kpis.totalFunding / 1e6).toFixed(1)
+  const totalRaised = ((stats?.total_funding || fallbackKpis.totalFunding) / 1e6).toFixed(1)
+
+  useEffect(() => {
+    let mounted = true
+    async function fetchDashboard() {
+      try {
+        setLoading(true)
+        const [statsRes, trendsRes, analyticsRes] = await Promise.all([
+          dashboardAPI.getStats().catch(() => null),
+          dashboardAPI.getTrends().catch(() => null),
+          dashboardAPI.getAnalytics().catch(() => null),
+        ])
+        if (!mounted) return
+        if (statsRes?.data?.data) setStats(statsRes.data.data)
+        if (trendsRes?.data?.data) setTrends(trendsRes.data.data)
+        if (analyticsRes?.data?.data) setAnalytics(analyticsRes.data.data)
+      } catch (e) {
+        console.warn('Dashboard fetch failed, using fallback data:', e)
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    }
+    fetchDashboard()
+    return () => { mounted = false }
+  }, [])
+
+  const userName = user?.full_name || user?.name || 'Innovation Leader'
 
   return (
     <div>
@@ -50,10 +104,15 @@ export default function Dashboard() {
       <div className="grid lg:grid-cols-4 gap-4 mb-4 items-start">
         <div className="lg:col-span-2">
           <h1 className="font-heading text-2xl sm:text-3xl font-semibold text-ink dark:text-white">
-            Welcome, Innovation Leader
+            Welcome, {userName}
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1">
-            Current status is powered by <span className="text-emerald-600 font-medium">● Success</span>.
+            Current status is powered by <span className="text-emerald-600 font-medium">● {loading ? 'Loading...' : 'Success'}</span>.
+            {stats && (
+              <span className="ml-2 text-xs text-slate-400">
+                ({stats.total_startups || 0} startups · {stats.mentors_active || 0} mentors)
+              </span>
+            )}
           </p>
         </div>
 
@@ -133,6 +192,12 @@ export default function Dashboard() {
               Apply for Funding <ChevronRightIcon className="h-4 w-4" />
             </Link>
           </div>
+          {stats && (
+            <div className="mt-auto pt-4 border-t border-white/10">
+              <p className="text-xs text-white/70">Success Rate: <span className="font-semibold">{stats.success_rate}%</span></p>
+              <p className="text-xs text-white/70">Jobs Created: <span className="font-semibold">{stats.total_jobs_created}</span></p>
+            </div>
+          )}
         </div>
 
         <div className="card p-5 flex flex-col">
