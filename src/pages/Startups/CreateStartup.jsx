@@ -51,6 +51,29 @@ export default function CreateStartup() {
         </div>
         <div className="grid sm:grid-cols-2 gap-5">
           <div>
+            <label className="label">Region</label>
+            <select className="input" {...register('region', { required: 'Required' })}>
+              <option value="">Select region...</option>
+              <option>Addis Ababa</option>
+              <option>Afar</option>
+              <option>Amhara</option>
+              <option>Benishangul-Gumuz</option>
+              <option>Central Ethiopia</option>
+              <option>Dire Dawa</option>
+              <option>Gambela</option>
+              <option>Harari</option>
+              <option>Oromia</option>
+              <option>Sidama</option>
+              <option>Somali</option>
+              <option>South Ethiopia</option>
+              <option>South West Ethiopia Peoples'</option>
+              <option>Tigray</option>
+            </select>
+            {errors.region && <p className="text-xs text-red-500 mt-1">{errors.region.message}</p>}
+          </div>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-5">
+          <div>
             <label className="label">Technology Readiness Level (TRL)</label>
             <input type="number" min="1" max="9" className="input" {...register('trl', { required: true })} />
           </div>
