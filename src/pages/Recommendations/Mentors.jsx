@@ -2,6 +2,8 @@ import React, { useState } from 'react'
 import { MagnifyingGlassIcon, VideoCameraIcon, PaperAirplaneIcon, ChevronLeftIcon, ChevronRightIcon, CheckIcon } from '@heroicons/react/24/outline'
 import { PageHeader, LoadingBlock, ErrorNotice } from '../../components/ui.jsx'
 import { useApiData } from '../../services/useApiData.js'
+import { sessionAPI } from '../../services/api.js'
+import toast from 'react-hot-toast'
 import { mentors as sampleMentors } from '../../data/sampleData.js'
 
 const industries = ['Technology', 'Healthcare', 'Finance', 'Sustainability']
@@ -19,6 +21,8 @@ const highlighted = [10, 11, 14, 15, 20]
 
 export default function Mentors() {
   const { data, loading, isFallback } = useApiData('/api/mentors/', sampleMentors)
+  const [search, setSearch] = useState('')
+  const [requestingId, setRequestingId] = useState(null)
   const [experience, setExperience] = useState([])
   const [experienceRange, setExperienceRange] = useState(50)
   const [selectedIndustries, setSelectedIndustries] = useState([])
@@ -29,6 +33,37 @@ export default function Mentors() {
 
   const toggle = (list, setList, value) =>
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value])
+
+  const filteredMentors = data.filter((m) => {
+    const name = (m.full_name || m.name || '').toLowerCase()
+    const expertise = (m.expertise_areas || m.title || '').toLowerCase()
+    if (search && !name.includes(search.toLowerCase()) && !expertise.includes(search.toLowerCase())) return false
+    if (selectedIndustries.length > 0 && !selectedIndustries.some((i) => (m.preferred_sectors || []).includes(i))) return false
+    if (selectedSkills.length > 0 && !selectedSkills.some((s) => expertise.includes(s.toLowerCase()))) return false
+    if (experience.length > 0) {
+      const years = m.years_experience ?? m.years ?? 0
+      const bucket = years <= 3 ? '0-3 years' : years <= 7 ? '4-7 years' : '8+ years'
+      if (!experience.includes(bucket)) return false
+    }
+    return true
+  })
+
+  const handleRequestSession = async (mentor) => {
+    const id = mentor.mentor_id || mentor.id
+    setRequestingId(id)
+    try {
+      await sessionAPI.request(id)
+      toast.success('Session requested')
+    } catch (err) {
+      if (err?.response?.status === 409) {
+        toast('Already requested')
+      } else {
+        toast.error('Could not request session')
+      }
+    } finally {
+      setRequestingId(null)
+    }
+  }
 
   const sendChat = (e) => {
     e.preventDefault()
@@ -47,7 +82,7 @@ export default function Mentors() {
         <aside className="card p-5 h-fit space-y-5">
           <div className="relative">
             <MagnifyingGlassIcon className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input placeholder="Search mentors..." className="input pl-9 text-sm" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search mentors..." className="input pl-9 text-sm" />
           </div>
 
           <div>
@@ -126,7 +161,7 @@ export default function Mentors() {
           <LoadingBlock />
         ) : (
           <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4 content-start">
-            {data.map((m) => {
+            {filteredMentors.map((m) => {
               const name = m.full_name || m.name || 'Unnamed Mentor'
               const initials = name.split(' ').map((p) => p[0]).slice(0, 2).join('')
               const years = m.years_experience ?? m.years
@@ -169,7 +204,13 @@ export default function Mentors() {
                 </div>
                 <div className="flex gap-2">
                   <button className="btn-outline flex-1 text-xs">View Profile</button>
-                  <button className="btn-primary flex-1 text-xs">Request Session</button>
+                  <button
+                    onClick={() => handleRequestSession(m)}
+                    disabled={requestingId === (m.mentor_id || m.id)}
+                    className="btn-primary flex-1 text-xs disabled:opacity-50"
+                  >
+                    {requestingId === (m.mentor_id || m.id) ? 'Requesting...' : 'Request Session'}
+                  </button>
                 </div>
               </div>
               )
