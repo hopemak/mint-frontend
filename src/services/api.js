@@ -152,7 +152,7 @@ export const grantAPI = {
   update: (id, data) => api.put(`/api/grants/${id}/`, data),
   delete: (id) => api.delete(`/api/grants/${id}/`),
   apply: (data) => api.post('/api/grants/apply/', data),
-  match: (data) => api.post('/api/grants/match/', data),
+  match: (startupData) => api.post('/api/grants/match', { startup_data: startupData }),
   getApplications: () => api.get('/api/grants/applications'),
   updateApplicationStatus: (id, status) => api.put(`/api/grants/applications/${id}/status/`, { status }),
 }
@@ -166,6 +166,7 @@ export const investorAPI = {
   create: (data) => api.post('/api/investors/', data),
   update: (id, data) => api.put(`/api/investors/${id}/`, data),
   delete: (id) => api.delete(`/api/investors/${id}/`),
+  match: (startupData) => api.post('/api/investors/match', { startup_data: startupData }),
 }
 
 // ============================================================
@@ -177,7 +178,7 @@ export const mentorAPI = {
   create: (data) => api.post('/api/mentors/', data),
   update: (id, data) => api.put(`/api/mentors/${id}/`, data),
   delete: (id) => api.delete(`/api/mentors/${id}/`),
-  match: (data) => api.post('/api/mentors/match/', data),
+  match: (startupData) => api.post('/api/mentors/match', { startup_data: startupData }),
 }
 
 // ============================================================
@@ -222,6 +223,8 @@ export const eventAPI = {
   create: (data) => api.post('/api/events/', data),
   update: (id, data) => api.put(`/api/events/${id}/`, data),
   delete: (id) => api.delete(`/api/events/${id}/`),
+  register: (id) => api.post(`/api/events/${id}/register`),
+  unregister: (id) => api.delete(`/api/events/${id}/register`),
 }
 
 // ============================================================
@@ -233,6 +236,7 @@ export const paperAPI = {
   create: (data) => api.post('/api/papers/', data),
   update: (id, data) => api.put(`/api/papers/${id}/`, data),
   delete: (id) => api.delete(`/api/papers/${id}/`),
+  match: (startupData) => api.post('/api/papers/match', { startup_data: startupData }),
 }
 
 // ============================================================
