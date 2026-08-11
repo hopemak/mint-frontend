@@ -91,7 +91,7 @@ export default function PrototypeCenter() {
         eyebrow="Innovation Incubator"
         title="Prototype Development Center"
         action={
-          <button className="btn-primary">
+          <button onClick={() => window.location.reload()} className="btn-primary">
             <PlusIcon className="h-4 w-4" /> New Prototype
           </button>
         }
