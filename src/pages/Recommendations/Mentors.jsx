@@ -155,7 +155,17 @@ export default function Mentors() {
             </div>
           </div>
 
-          <button className="btn-primary w-full text-sm">Apply Filters</button>
+          <button
+            onClick={() => {
+              setSearch('')
+              setExperience([])
+              setSelectedIndustries([])
+              setSelectedSkills([])
+            }}
+            className="btn-outline w-full text-sm"
+          >
+            Clear Filters
+          </button>
         </aside>
 
         {/* Mentor grid */}
