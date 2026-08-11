@@ -126,44 +126,54 @@ export default function Mentors() {
           <LoadingBlock />
         ) : (
           <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4 content-start">
-            {data.map((m) => (
-              <div key={m.id} className="card p-5">
+            {data.map((m) => {
+              const name = m.full_name || m.name || 'Unnamed Mentor'
+              const initials = name.split(' ').map((p) => p[0]).slice(0, 2).join('')
+              const years = m.years_experience ?? m.years
+              const expertise = m.expertise_areas || m.title
+              return (
+              <div key={m.mentor_id || m.id} className="card p-5">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="h-11 w-11 rounded-full bg-primary text-white flex items-center justify-center font-semibold shrink-0">
-                    {m.name.split(' ').map((p) => p[0]).slice(0, 2).join('')}
+                    {initials}
                   </div>
                   <div>
-                    <p className="font-medium text-sm text-ink dark:text-white">{m.name}</p>
-                    <p className="text-xs text-slate-500">{m.years}+ Years Experience</p>
+                    <p className="font-medium text-sm text-ink dark:text-white">{name}</p>
+                    {expertise && <p className="text-xs text-slate-400">{expertise}</p>}
+                    {years != null && <p className="text-xs text-slate-500">{years}+ Years Experience</p>}
                   </div>
                 </div>
-                <p className="text-xs text-amber-500 mb-3">★ {m.rating}</p>
-
+                {m.rating != null && <p className="text-xs text-amber-500 mb-3">★ {m.rating}</p>}
                 <p className="text-xs text-slate-400 mb-1.5">Company Logos</p>
                 <div className="flex gap-1.5 mb-3">
                   {companyLogos.map((c, i) => (
                     <span key={i} className={`h-5 w-5 rounded-full ${c}`} />
                   ))}
                 </div>
-
                 <div className="flex items-center justify-between gap-3 mb-3">
                   <div>
                     <p className="text-xs text-slate-400 mb-1">Availability</p>
                     {m.availability === 'available' ? (
                       <span className="badge bg-emerald-100 text-emerald-700">Available This Week</span>
-                    ) : (
+                    ) : m.availability ? (
                       <span className="badge bg-accent-100 text-accent-700">Next Availability: {m.nextDate}</span>
+                    ) : (
+                      <span className="badge bg-slate-100 text-slate-500 dark:bg-primary-700">Contact to check</span>
                     )}
                   </div>
-                  <div
-                    className={`h-12 w-12 rounded-full border-4 flex flex-col items-center justify-center text-[10px] font-semibold shrink-0 ${
-                      m.availability === 'available' ? 'border-emerald-400 text-emerald-600' : 'border-primary-300 text-primary'
-                    }`}
-                  >
-                    {m.match}% <span className="text-[8px] font-normal">Match</span>
-                  </div>
+                  {m.match != null && (
+                    <div className="h-12 w-12 rounded-full border-4 border-primary-300 text-primary flex flex-col items-center justify-center text-[10px] font-semibold shrink-0">
+                      {m.match}% <span className="text-[8px] font-normal">Match</span>
+                    </div>
+                  )}
                 </div>
-
+                <div className="flex gap-2">
+                  <button className="btn-outline flex-1 text-xs">View Profile</button>
+                  <button className="btn-primary flex-1 text-xs">Request Session</button>
+                </div>
+              </div>
+              )
+            })}
                 <div className="flex gap-2">
                   <button className="btn-outline flex-1 text-xs">View Profile</button>
                   <button className="btn-primary flex-1 text-xs">Request Session</button>
