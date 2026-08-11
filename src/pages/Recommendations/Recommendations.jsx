@@ -31,6 +31,14 @@ export default function Recommendations() {
   const [mentorDetail, setMentorDetail] = useState(null)
   const [mentorDetailLoading, setMentorDetailLoading] = useState(false)
 
+  const [investorModal, setInvestorModal] = useState(null)
+  const [investorDetail, setInvestorDetail] = useState(null)
+  const [investorDetailLoading, setInvestorDetailLoading] = useState(false)
+
+  const [grantModal, setGrantModal] = useState(null)
+  const [grantDetail, setGrantDetail] = useState(null)
+  const [grantDetailLoading, setGrantDetailLoading] = useState(false)
+
   useEffect(() => {
     let cancelled = false
     async function load() {
@@ -150,6 +158,36 @@ export default function Recommendations() {
     }
   }
 
+  const openInvestorProfile = async (investor) => {
+    setInvestorModal(investor)
+    setInvestorDetail(null)
+    setInvestorDetailLoading(true)
+    try {
+      const detailRes = await investorAPI.getById(investor.id)
+      const detail = (detailRes.data && detailRes.data.data) || detailRes.data
+      setInvestorDetail(detail)
+    } catch (err) {
+      toast.error('Could not load investor profile')
+    } finally {
+      setInvestorDetailLoading(false)
+    }
+  }
+
+  const openGrantProfile = async (grant) => {
+    setGrantModal(grant)
+    setGrantDetail(null)
+    setGrantDetailLoading(true)
+    try {
+      const detailRes = await grantAPI.getById(grant.id)
+      const detail = (detailRes.data && detailRes.data.data) || detailRes.data
+      setGrantDetail(detail)
+    } catch (err) {
+      toast.error('Could not load grant details')
+    } finally {
+      setGrantDetailLoading(false)
+    }
+  }
+
   const sendChatMessage = async () => {
     const text = chatInput.trim()
     if (!text || chatSending) return
@@ -219,7 +257,7 @@ export default function Recommendations() {
                   </div>
                   <div className="text-right">
                     <span className="badge bg-emerald-100 text-emerald-700 mb-2 block w-fit ml-auto">{inv.match}% Match</span>
-                    <button onClick={() => toast('Direct investor messaging is not available yet')} className="btn-outline text-sm">Connect</button>
+                    <button onClick={() => openInvestorProfile(inv)} className="btn-outline text-sm">View Profile</button>
                   </div>
                 </div>
               ))}
@@ -240,15 +278,18 @@ export default function Recommendations() {
                     <span className="badge bg-red-100 text-red-600">Deadline: {g.deadline}</span>
                   </div>
                   <p className="text-sm text-slate-500 mb-3">{g.tags?.join(' · ')}</p>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-medium text-ink dark:text-white">${(g.amount || 0).toLocaleString()} max</span>
-                    <button
-                      onClick={() => handleApplyGrant(g)}
-                      disabled={applyingGrantId === g.id}
-                      className="btn-primary text-sm disabled:opacity-50"
-                    >
-                      {applyingGrantId === g.id ? 'Submitting...' : 'Apply Now'}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => openGrantProfile(g)} className="btn-outline text-sm">Details</button>
+                      <button
+                        onClick={() => handleApplyGrant(g)}
+                        disabled={applyingGrantId === g.id}
+                        className="btn-primary text-sm disabled:opacity-50"
+                      >
+                        {applyingGrantId === g.id ? 'Submitting...' : 'Apply Now'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -360,6 +401,63 @@ export default function Recommendations() {
                 >
                   Find Mentors <ArrowRightIcon className="h-4 w-4" />
                 </Link>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+      {investorModal && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 p-4" onClick={() => setInvestorModal(null)}>
+          <div className="card w-full max-w-md p-5 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-heading font-semibold text-lg text-ink dark:text-white">{investorModal.name}</h3>
+              <button onClick={() => setInvestorModal(null)} className="text-slate-400 hover:text-slate-600">
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+            {investorDetailLoading ? (
+              <p className="text-sm text-slate-500">Loading...</p>
+            ) : (
+              <>
+                <p className="text-sm text-slate-500 mb-1">Focus: {investorDetail?.focus || investorModal.focus}</p>
+                <p className="text-sm text-slate-500 mb-1">Investment Stage: {investorDetail?.stage || investorModal.stage}</p>
+                {investorDetail?.description && (
+                  <p className="text-sm text-slate-600 dark:text-slate-300 mt-3 mb-1">{investorDetail.description}</p>
+                )}
+                <p className="text-xs text-slate-400 mt-4">Direct messaging with investors isn't available yet.</p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+      {grantModal && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 p-4" onClick={() => setGrantModal(null)}>
+          <div className="card w-full max-w-md p-5 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-heading font-semibold text-lg text-ink dark:text-white">{grantModal.name}</h3>
+              <button onClick={() => setGrantModal(null)} className="text-slate-400 hover:text-slate-600">
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+            {grantDetailLoading ? (
+              <p className="text-sm text-slate-500">Loading...</p>
+            ) : (
+              <>
+                <p className="text-sm text-slate-500 mb-1">Deadline: {grantDetail?.deadline || grantModal.deadline}</p>
+                <p className="text-sm text-slate-500 mb-1">Amount: up to ${(grantDetail?.amount ?? grantModal.amount ?? 0).toLocaleString()}</p>
+                {grantDetail?.funds_remaining != null && (
+                  <p className="text-sm text-slate-500 mb-1">Funds remaining: ${grantDetail.funds_remaining.toLocaleString()}</p>
+                )}
+                {grantDetail?.description && (
+                  <p className="text-sm text-slate-600 dark:text-slate-300 mt-3 mb-4">{grantDetail.description}</p>
+                )}
+                <button
+                  onClick={() => { handleApplyGrant(grantModal); setGrantModal(null) }}
+                  disabled={applyingGrantId === grantModal.id}
+                  className="btn-primary w-full text-sm disabled:opacity-50"
+                >
+                  {applyingGrantId === grantModal.id ? 'Submitting...' : 'Apply Now'}
+                </button>
               </>
             )}
           </div>
