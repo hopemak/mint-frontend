@@ -47,6 +47,7 @@ export const userAPI = {
   getRoles: () => api.get('/api/users/roles/'),
 }
 
+
 // ============================================================
 // ML API - Public AI (no auth required)
 // ============================================================
@@ -122,10 +123,12 @@ export const workspaceAPI = {
 // ============================================================
 export const startupAPI = {
   getAll: () => api.get('/api/startups'),
-  getById: (id) => api.get(`/api/startups/${id}/`),
-  create: (data) => api.post('/api/startups/', data),
-  update: (id, data) => api.put(`/api/startups/${id}/`, data),
-  delete: (id) => api.delete(`/api/startups/${id}/`),
+  getById: (id) => api.get('/api/startups/' + id),
+  create: (data) => api.post('/api/startups', data),
+  update: (id, data) => api.put('/api/startups/' + id, data),
+  deleteById: (id) => api.delete('/api/startups/' + id),
+  getMyStartups: () => api.get('/api/startups/my'),
+  updateStatus: (id, status) => api.put('/api/startups/' + id + '/status', {status: status}),
 }
 
 // ============================================================
@@ -246,9 +249,9 @@ export const analyticsAPI = {
 // DASHBOARD API
 // ============================================================
 export const dashboardAPI = {
-  getStats: () => api.get('/api/dashboard/stats/'),
-  getOverview: () => api.get('/api/dashboard/overview/'),
-  getRecent: () => api.get('/api/dashboard/recent/'),
+  getStats: () => api.get('/api/dashboard/stats'),
+  getTrends: () => api.get('/api/dashboard/trends'),
+  getAnalytics: () => api.get('/api/dashboard/analytics'),
 }
 
 // ============================================================
