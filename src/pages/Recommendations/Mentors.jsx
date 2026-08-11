@@ -174,12 +174,6 @@ export default function Mentors() {
               </div>
               )
             })}
-                <div className="flex gap-2">
-                  <button className="btn-outline flex-1 text-xs">View Profile</button>
-                  <button className="btn-primary flex-1 text-xs">Request Session</button>
-                </div>
-              </div>
-            ))}
           </div>
         )}
 
