@@ -34,9 +34,11 @@ export default function Mentors() {
   const toggle = (list, setList, value) =>
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value])
 
+  const asText = (v) => Array.isArray(v) ? v.join(' ') : (v || '')
+
   const filteredMentors = data.filter((m) => {
-    const name = (m.full_name || m.name || '').toLowerCase()
-    const expertise = (m.expertise_areas || m.title || '').toLowerCase()
+    const name = asText(m.full_name || m.name).toLowerCase()
+    const expertise = asText(m.expertise_areas || m.title).toLowerCase()
     if (search && !name.includes(search.toLowerCase()) && !expertise.includes(search.toLowerCase())) return false
     if (selectedIndustries.length > 0 && !selectedIndustries.some((i) => (m.preferred_sectors || []).includes(i))) return false
     if (selectedSkills.length > 0 && !selectedSkills.some((s) => expertise.includes(s.toLowerCase()))) return false
@@ -165,7 +167,7 @@ export default function Mentors() {
               const name = m.full_name || m.name || 'Unnamed Mentor'
               const initials = name.split(' ').map((p) => p[0]).slice(0, 2).join('')
               const years = m.years_experience ?? m.years
-              const expertise = m.expertise_areas || m.title
+              const expertise = asText(m.expertise_areas || m.title)
               return (
               <div key={m.mentor_id || m.id} className="card p-5">
                 <div className="flex items-center gap-3 mb-3">
