@@ -49,6 +49,7 @@ export default function Mentors() {
   const today = new Date()
   const [calendarMonth, setCalendarMonth] = useState(today.getMonth())
   const [calendarYear, setCalendarYear] = useState(today.getFullYear())
+  const [selectedDay, setSelectedDay] = useState(null)
 
   useEffect(() => {
     async function loadMatchAndSessions() {
@@ -65,8 +66,8 @@ export default function Mentors() {
         // matching is best-effort
       }
       try {
-        const { data: myRequestsRes } = await sessionAPI.mine()
-        const requests = (myRequestsRes && myRequestsRes.data) ? myRequestsRes.data : []
+        const { data: allRequestsRes } = await sessionAPI.all()
+        const requests = (allRequestsRes && allRequestsRes.data) ? allRequestsRes.data : []
         setMySessionRequests(requests)
       } catch (err) {
         // best-effort
@@ -90,6 +91,16 @@ export default function Mentors() {
     .map((d) => d.getDate())
 
   const calendarDays = Array.from({ length: daysInMonth(calendarYear, calendarMonth) }, (_, i) => i + 1)
+
+  const mentorNameById = Object.fromEntries(
+    (data || []).map((m) => [m.mentor_id || m.id, m.full_name || m.name || 'Unknown mentor'])
+  )
+  const requestsOnSelectedDay = selectedDay
+    ? mySessionRequests.filter((r) => {
+        const d = new Date(r.created_at)
+        return d.getFullYear() === calendarYear && d.getMonth() === calendarMonth && d.getDate() === selectedDay
+      })
+    : []
 
   const startVideoMeeting = () => {
     if (!activeMentor) {
@@ -387,14 +398,47 @@ export default function Mentors() {
               {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => <span key={d}>{d}</span>)}
             </div>
             <div className="grid grid-cols-7 gap-1 text-center text-xs">
-              {calendarDays.map((d) => (
-                <span key={d} className={`h-7 w-7 flex items-center justify-center rounded-full mx-auto ${highlightedDays.includes(d) ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-300'}`}>
-                  {d}
-                </span>
-              ))}
+              {calendarDays.map((d) => {
+                const isHighlighted = highlightedDays.includes(d)
+                return (
+                  <button
+                    key={d}
+                    onClick={() => isHighlighted && setSelectedDay(selectedDay === d ? null : d)}
+                    disabled={!isHighlighted}
+                    className={`h-7 w-7 flex items-center justify-center rounded-full mx-auto ${
+                      selectedDay === d
+                        ? 'bg-accent-500 text-white'
+                        : isHighlighted
+                          ? 'bg-primary text-white cursor-pointer'
+                          : 'text-slate-600 dark:text-slate-300 cursor-default'
+                    }`}
+                  >
+                    {d}
+                  </button>
+                )
+              })}
             </div>
             {highlightedDays.length > 0 && (
-              <p className="text-[11px] text-slate-400 mt-2">Highlighted days have a session request.</p>
+              <p className="text-[11px] text-slate-400 mt-2">Click a highlighted day to see requests.</p>
+            )}
+            {selectedDay && (
+              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-primary-700 space-y-1.5">
+                <p className="text-xs font-medium text-ink dark:text-white">
+                  {monthNames[calendarMonth]} {selectedDay}, {calendarYear}
+                </p>
+                {requestsOnSelectedDay.length === 0 ? (
+                  <p className="text-xs text-slate-400">No requests found.</p>
+                ) : (
+                  requestsOnSelectedDay.map((r) => (
+                    <div key={r.request_id} className="flex items-center justify-between text-xs gap-2">
+                      <span className="text-slate-600 dark:text-slate-300 truncate">
+                        <span className="font-medium text-ink dark:text-white">{r.user_name || 'Unknown'}</span> → {mentorNameById[r.mentor_id] || r.mentor_id}
+                      </span>
+                      <span className="badge bg-slate-100 text-slate-500 dark:bg-primary-700 shrink-0">{r.status}</span>
+                    </div>
+                  ))
+                )}
+              </div>
             )}
           </div>
 
