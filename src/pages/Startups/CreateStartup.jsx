@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { PageHeader } from '../../components/ui.jsx'
-import api from '../../services/api.js'
+import { startupAPI } from '../../services/api.js'
 
 export default function CreateStartup() {
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm()
@@ -11,12 +11,20 @@ export default function CreateStartup() {
 
   const onSubmit = async (values) => {
     try {
-      await api.post('/api/startups', values)
+      const payload = { ...values, business_name: values.name }
+      delete payload.name
+      const { data } = await startupAPI.create(payload)
+      const newStartup = data?.data || data
       toast.success('Startup created')
-    } catch {
-      toast.success('Startup saved locally (demo mode — backend offline)')
+      const newId = newStartup?.startup_id || newStartup?.id
+      if (newId) {
+        navigate(`/startups/${newId}`)
+      } else {
+        navigate('/startups')
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to create startup. Please try again.')
     }
-    navigate('/startups')
   }
 
   return (
