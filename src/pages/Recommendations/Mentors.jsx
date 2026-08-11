@@ -18,7 +18,7 @@ const days = Array.from({ length: 31 }, (_, i) => i + 1)
 const highlighted = [10, 11, 14, 15, 20]
 
 export default function Mentors() {
-  const { data, loading, isFallback } = useApiData('/api/recommendations/mentors', sampleMentors)
+  const { data, loading, isFallback } = useApiData('/api/mentors/', sampleMentors)
   const [experience, setExperience] = useState([])
   const [experienceRange, setExperienceRange] = useState(50)
   const [selectedIndustries, setSelectedIndustries] = useState([])
