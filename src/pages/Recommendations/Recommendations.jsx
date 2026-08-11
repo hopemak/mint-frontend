@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { XMarkIcon, SparklesIcon, CalendarDaysIcon, CheckCircleIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline'
+import { XMarkIcon, SparklesIcon, CalendarDaysIcon, CheckCircleIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
 import { PageHeader, LoadingBlock, ErrorNotice } from '../../components/ui.jsx'
-import { mentorAPI, investorAPI, grantAPI, paperAPI, eventAPI, startupAPI, messageAPI, mlAPI } from '../../services/api.js'
+import { mentorAPI, investorAPI, grantAPI, paperAPI, eventAPI, startupAPI, mlAPI } from '../../services/api.js'
 
 const courses = [
   { id: 1, title: 'Advanced Product Analytics', progress: 45 },
@@ -29,9 +30,6 @@ export default function Recommendations() {
   const [mentorModal, setMentorModal] = useState(null)
   const [mentorDetail, setMentorDetail] = useState(null)
   const [mentorDetailLoading, setMentorDetailLoading] = useState(false)
-  const [mentorThread, setMentorThread] = useState([])
-  const [mentorMsgInput, setMentorMsgInput] = useState('')
-  const [mentorMsgSending, setMentorMsgSending] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -140,36 +138,15 @@ export default function Recommendations() {
   const openMentorProfile = async (mentor) => {
     setMentorModal(mentor)
     setMentorDetail(null)
-    setMentorThread([])
     setMentorDetailLoading(true)
     try {
-      const [detailRes, threadRes] = await Promise.all([
-        mentorAPI.getById(mentor.id),
-        messageAPI.getThread(mentor.id),
-      ])
+      const detailRes = await mentorAPI.getById(mentor.id)
       const detail = (detailRes.data && detailRes.data.data) || detailRes.data
-      const thread = (threadRes.data && threadRes.data.data) || []
       setMentorDetail(detail)
-      setMentorThread(Array.isArray(thread) ? thread : [])
     } catch (err) {
       toast.error('Could not load mentor profile')
     } finally {
       setMentorDetailLoading(false)
-    }
-  }
-
-  const sendMentorMessage = async () => {
-    const text = mentorMsgInput.trim()
-    if (!text || !mentorModal || mentorMsgSending) return
-    setMentorMsgSending(true)
-    try {
-      await messageAPI.send({ mentor_id: mentorModal.id, text })
-      setMentorThread((prev) => [...prev, { from: 'me', text, created_at: new Date().toISOString() }])
-      setMentorMsgInput('')
-    } catch (err) {
-      toast.error('Could not send message')
-    } finally {
-      setMentorMsgSending(false)
     }
   }
 
@@ -365,37 +342,24 @@ export default function Recommendations() {
             ) : (
               <>
                 <p className="text-sm text-slate-500 mb-1">{mentorDetail?.expertise || mentorModal.title}</p>
+                {mentorDetail?.years_experience != null && (
+                  <p className="text-sm text-slate-500 mb-1">{mentorDetail.years_experience}+ years experience</p>
+                )}
                 {mentorDetail?.bio && <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">{mentorDetail.bio}</p>}
-
-                <div className="border-t border-slate-100 dark:border-primary-700 pt-4 mt-2">
-                  <p className="text-sm font-medium text-ink dark:text-white mb-2">Messages</p>
-                  <div className="space-y-2 max-h-48 overflow-y-auto mb-3">
-                    {mentorThread.length === 0 && <p className="text-sm text-slate-400">No messages yet — say hello.</p>}
-                    {mentorThread.map((msg, i) => (
-                      <div key={i} className={`rounded-lg p-2.5 text-sm max-w-[85%] ${msg.from === 'me' ? 'bg-primary text-white ml-auto' : 'bg-slate-50 dark:bg-primary-700 text-slate-600 dark:text-slate-300'}`}>
-                        {msg.text}
-                      </div>
+                {mentorDetail?.preferred_sectors && mentorDetail.preferred_sectors.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-4">
+                    {mentorDetail.preferred_sectors.map((s) => (
+                      <span key={s} className="badge bg-primary-100 text-primary-700 dark:bg-primary-700 dark:text-accent-200">{s}</span>
                     ))}
                   </div>
-                  <div className="flex gap-2">
-                    <input
-                      value={mentorMsgInput}
-                      onChange={(e) => setMentorMsgInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') sendMentorMessage() }}
-                      placeholder="Type a message..."
-                      className="input text-sm flex-1"
-                      disabled={mentorMsgSending}
-                    />
-                    <button
-                      onClick={sendMentorMessage}
-                      disabled={mentorMsgSending || !mentorMsgInput.trim()}
-                      className="btn-primary px-3 disabled:opacity-50"
-                      aria-label="Send message"
-                    >
-                      <PaperAirplaneIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
+                )}
+                <Link
+                  to="/mentors"
+                  onClick={() => setMentorModal(null)}
+                  className="btn-primary w-full text-sm mt-2 flex items-center justify-center gap-1.5"
+                >
+                  Find Mentors <ArrowRightIcon className="h-4 w-4" />
+                </Link>
               </>
             )}
           </div>
