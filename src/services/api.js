@@ -194,6 +194,7 @@ export const sessionAPI = {
   create: (data) => api.post('/api/sessions/', data),
   update: (id, data) => api.put(`/api/sessions/${id}/`, data),
   delete: (id) => api.delete(`/api/sessions/${id}/`),
+  request: (mentorId) => api.post(`/api/sessions/${mentorId}/request`),
 }
 
 // ============================================================
