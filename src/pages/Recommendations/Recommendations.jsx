@@ -1,35 +1,130 @@
-import React, { useState } from 'react'
-import { XMarkIcon, SparklesIcon, CalendarDaysIcon } from '@heroicons/react/24/outline'
+import React, { useState, useEffect } from 'react'
+import toast from 'react-hot-toast'
+import { XMarkIcon, SparklesIcon, CalendarDaysIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
 import { PageHeader, LoadingBlock, ErrorNotice } from '../../components/ui.jsx'
-import { useApiData } from '../../services/useApiData.js'
-import { mentors as sampleMentors, investors as sampleInvestors, grants as sampleGrants } from '../../data/sampleData.js'
-
-const researchPapers = [
-  { id: 1, title: 'Optimizing Edge Computing for IoT', author: 'S. Fomans', takeaway: 'Edge computing cuts latency for real-time IoT decisions.' },
-  { id: 2, title: 'Neural Networks and Adoption Curves', author: 'Scott Amare', takeaway: 'Adoption accelerates once inference cost drops below a threshold.' },
-]
-
-const startupEvents = [
-  { id: 1, day: 26, title: 'Startup Pitch Night', location: 'Online', time: '3:00 PM' },
-  { id: 2, day: 17, title: 'Founder Roundtable', location: 'Online', time: '9:00 PM' },
-  { id: 3, day: 28, title: 'Demo Day Rehearsal', location: 'Online', time: '3:00 PM' },
-]
+import { mentorAPI, investorAPI, grantAPI, paperAPI, eventAPI, startupAPI, mlAPI } from '../../services/api.js'
 
 const courses = [
   { id: 1, title: 'Advanced Product Analytics', progress: 45 },
   { id: 2, title: 'Fundraising Fundamentals', progress: 0 },
 ]
 
-const aiSuggestions = [
-  'Based on your recent milestone, consider connecting with Dr. Evelyn Reed for scaling advice.',
-  'A new grant opportunity matches your sector focus — check the deadline on Eco Innovation Grant.',
-]
-
 export default function Recommendations() {
-  const { data: mentors, loading, isFallback } = useApiData('/api/recommendations/mentors', sampleMentors)
-  const { data: investors } = useApiData('/api/recommendations/investors', sampleInvestors)
-  const { data: grants } = useApiData('/api/recommendations/grants', sampleGrants)
-  const [assistantOpen, setAssistantOpen] = useState(true)
+  const [mentors, setMentors] = useState([])
+  const [investors, setInvestors] = useState([])
+  const [grants, setGrants] = useState([])
+  const [papers, setPapers] = useState([])
+  const [events, setEvents] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [isFallback, setIsFallback] = useState(false)
+  const [registeringId, setRegisteringId] = useState(null)
+
+  const [assistantOpen, setAssistantOpen] = useState(false)
+  const [chatMessages, setChatMessages] = useState([])
+  const [chatInput, setChatInput] = useState('')
+  const [chatSending, setChatSending] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      setLoading(true)
+      try {
+        const { data: startupsRes } = await startupAPI.getMyStartups()
+        const startups = (startupsRes && startupsRes.data) ? startupsRes.data : startupsRes
+        const startup = Array.isArray(startups) ? startups[0] : null
+
+        if (!startup) {
+          if (!cancelled) {
+            setMentors([]); setInvestors([]); setGrants([]); setPapers([]); setEvents([])
+            setIsFallback(true)
+          }
+          return
+        }
+
+        const startupData = { sector: startup.sector }
+
+        const [mentorRes, investorRes, grantRes, paperRes, eventRes] = await Promise.all([
+          mentorAPI.match(startupData),
+          investorAPI.match(startupData),
+          grantAPI.match(startupData),
+          paperAPI.match(startupData),
+          eventAPI.getAll(),
+        ])
+
+        const mentorMatches = (mentorRes.data && mentorRes.data.data && mentorRes.data.data.matches) || []
+        const investorMatches = (investorRes.data && investorRes.data.data && investorRes.data.data.matches) || []
+        const grantMatches = (grantRes.data && grantRes.data.data && grantRes.data.data.matches) || []
+        const paperMatches = (paperRes.data && paperRes.data.data && paperRes.data.data.matches) || []
+        const eventList = (eventRes.data && eventRes.data.data) || []
+
+        if (!cancelled) {
+          setMentors(mentorMatches.map((m) => ({
+            id: m.mentor_id, name: m.name, title: m.expertise, match: m.match_percentage,
+          })))
+          setInvestors(investorMatches.map((inv) => ({
+            id: inv.investor_id, name: inv.name, focus: inv.focus, stage: inv.stage, match: inv.match_percentage,
+          })))
+          setGrants(grantMatches.map((g) => ({
+            id: g.grant_id, name: g.name, deadline: g.deadline, tags: g.tags || [], amount: g.amount || 0, match: g.match_percentage,
+          })))
+          setPapers(paperMatches.map((p) => ({
+            id: p.paper_id, title: p.title, author: p.author, takeaway: p.takeaway, url: p.url, match: p.match_percentage,
+          })))
+          setEvents(eventList.map((e) => ({
+            id: e.event_id || e.id, day: e.day, title: e.title, location: e.location, time: e.time, registered: e.registered,
+          })))
+          setIsFallback(false)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setMentors([]); setInvestors([]); setGrants([]); setPapers([]); setEvents([])
+          setIsFallback(true)
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [])
+
+  const handleRegister = async (eventId) => {
+    setRegisteringId(eventId)
+    try {
+      await eventAPI.register(eventId)
+      setEvents((prev) => prev.map((e) => e.id === eventId ? { ...e, registered: true } : e))
+      toast.success('Registered')
+    } catch (err) {
+      if (err.response && err.response.status === 409) {
+        setEvents((prev) => prev.map((e) => e.id === eventId ? { ...e, registered: true } : e))
+      } else {
+        toast.error('Could not register')
+      }
+    } finally {
+      setRegisteringId(null)
+    }
+  }
+
+  const sendChatMessage = async () => {
+    const text = chatInput.trim()
+    if (!text || chatSending) return
+    const userMsg = { role: 'user', content: text }
+    setChatMessages((prev) => [...prev, userMsg])
+    setChatInput('')
+    setChatSending(true)
+    try {
+      const res = await mlAPI.chat(text, {})
+      const reply = res?.data?.data?.reply || "I'm here to help, but I didn't get a clear response that time."
+      setChatMessages((prev) => [...prev, { role: 'assistant', content: reply }])
+    } catch (err) {
+      setChatMessages((prev) => [...prev, {
+        role: 'assistant',
+        content: "I'm currently offline — but based on your profile, consider checking the mentor matches above for now.",
+      }])
+    } finally {
+      setChatSending(false)
+    }
+  }
 
   if (loading) return <LoadingBlock label="Finding your best matches..." />
 
@@ -41,73 +136,90 @@ export default function Recommendations() {
       <div className={assistantOpen ? 'xl:pr-[340px]' : ''}>
         <section className="mb-8">
           <h2 className="font-heading font-semibold text-lg text-ink dark:text-white mb-4">Recommended Mentors</h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {mentors.map((m) => (
-              <div key={m.id} className="card p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="h-11 w-11 rounded-full bg-primary text-white flex items-center justify-center font-semibold">
-                    {m.name.split(' ').map((p) => p[0]).slice(0, 2).join('')}
+          {mentors.length === 0 ? (
+            <p className="text-sm text-slate-400">No mentor matches yet — create a startup to get personalized matches.</p>
+          ) : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {mentors.map((m) => (
+                <div key={m.id} className="card p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="h-11 w-11 rounded-full bg-primary text-white flex items-center justify-center font-semibold">
+                      {(m.name || '?').split(' ').map((p) => p[0]).slice(0, 2).join('')}
+                    </div>
+                    <span className="h-10 w-10 rounded-full border-4 border-emerald-400 flex items-center justify-center text-[10px] font-semibold text-emerald-600">
+                      {m.match}%
+                    </span>
                   </div>
-                  <span className="h-10 w-10 rounded-full border-4 border-emerald-400 flex items-center justify-center text-[10px] font-semibold text-emerald-600">
-                    {m.match}%
-                  </span>
+                  <p className="font-medium text-ink dark:text-white">{m.name}</p>
+                  <p className="text-sm text-slate-500 mb-3">{m.title}</p>
+                  <button onClick={() => toast('Mentor profiles coming soon')} className="btn-outline w-full text-sm">View Profile</button>
                 </div>
-                <p className="font-medium text-ink dark:text-white">{m.name}</p>
-                <p className="text-sm text-slate-500 mb-3">{m.title}</p>
-                <button className="btn-outline w-full text-sm">View Profile</button>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="mb-8">
           <h2 className="font-heading font-semibold text-lg text-ink dark:text-white mb-4">Recommended Investors</h2>
-          <div className="grid sm:grid-cols-2 gap-4">
-            {investors.map((inv) => (
-              <div key={inv.id} className="card p-5 flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-ink dark:text-white">{inv.name}</p>
-                  <p className="text-sm text-slate-500">Focus: {inv.focus}</p>
-                  <p className="text-xs text-slate-400">Investment Stage: {inv.stage}</p>
+          {investors.length === 0 ? (
+            <p className="text-sm text-slate-400">No investor matches yet.</p>
+          ) : (
+            <div className="grid sm:grid-cols-2 gap-4">
+              {investors.map((inv) => (
+                <div key={inv.id} className="card p-5 flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-ink dark:text-white">{inv.name}</p>
+                    <p className="text-sm text-slate-500">Focus: {inv.focus}</p>
+                    <p className="text-xs text-slate-400">Investment Stage: {inv.stage}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="badge bg-emerald-100 text-emerald-700 mb-2 block w-fit ml-auto">{inv.match}% Match</span>
+                    <button onClick={() => toast('Connect feature coming soon')} className="btn-outline text-sm">Connect</button>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span className="badge bg-emerald-100 text-emerald-700 mb-2 block w-fit ml-auto">{inv.match}% Match</span>
-                  <button className="btn-outline text-sm">Connect</button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="mb-8">
           <h2 className="font-heading font-semibold text-lg text-ink dark:text-white mb-4">Recommended Grants</h2>
-          <div className="grid sm:grid-cols-2 gap-4">
-            {grants.slice(0, 2).map((g) => (
-              <div key={g.id} className="card p-5">
-                <div className="flex items-start justify-between mb-2">
-                  <p className="font-medium text-ink dark:text-white">{g.name}</p>
-                  <span className="badge bg-red-100 text-red-600">Deadline: {g.deadline}</span>
+          {grants.length === 0 ? (
+            <p className="text-sm text-slate-400">No grant matches yet.</p>
+          ) : (
+            <div className="grid sm:grid-cols-2 gap-4">
+              {grants.slice(0, 2).map((g) => (
+                <div key={g.id} className="card p-5">
+                  <div className="flex items-start justify-between mb-2">
+                    <p className="font-medium text-ink dark:text-white">{g.name}</p>
+                    <span className="badge bg-red-100 text-red-600">Deadline: {g.deadline}</span>
+                  </div>
+                  <p className="text-sm text-slate-500 mb-3">{g.tags?.join(' · ')}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-ink dark:text-white">${(g.amount || 0).toLocaleString()} max</span>
+                    <button onClick={() => toast('Grant applications coming soon')} className="btn-primary text-sm">Apply Now</button>
+                  </div>
                 </div>
-                <p className="text-sm text-slate-500 mb-3">{g.tags?.join(' · ')}</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-ink dark:text-white">${g.amount.toLocaleString()} max</span>
-                  <button className="btn-primary text-sm">Apply Now</button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <div className="grid lg:grid-cols-3 gap-4">
           <section className="lg:col-span-1">
             <h2 className="font-heading font-semibold text-lg text-ink dark:text-white mb-4">Research Papers</h2>
             <div className="space-y-3">
-              {researchPapers.map((r) => (
+              {papers.length === 0 && <p className="text-sm text-slate-400">No paper matches yet.</p>}
+              {papers.map((r) => (
                 <div key={r.id} className="card p-4">
                   <p className="font-medium text-sm text-ink dark:text-white">{r.title}</p>
                   <p className="text-xs text-slate-400 mb-1.5">By {r.author}</p>
                   <p className="text-xs text-slate-500 mb-2">Key takeaway: {r.takeaway}</p>
-                  <button className="text-xs text-primary font-medium">Read More →</button>
+                  {r.url ? (
+                    <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium">Read More →</a>
+                  ) : (
+                    <span className="text-xs text-slate-400">No link available</span>
+                  )}
                 </div>
               ))}
             </div>
@@ -116,7 +228,8 @@ export default function Recommendations() {
           <section className="lg:col-span-1">
             <h2 className="font-heading font-semibold text-lg text-ink dark:text-white mb-4">Startup Events</h2>
             <div className="space-y-3">
-              {startupEvents.map((e) => (
+              {events.length === 0 && <p className="text-sm text-slate-400">No events right now.</p>}
+              {events.map((e) => (
                 <div key={e.id} className="card p-4 flex items-center gap-3">
                   <div className="h-11 w-11 rounded-lg bg-primary/10 text-primary flex flex-col items-center justify-center shrink-0">
                     <CalendarDaysIcon className="h-4 w-4" />
@@ -126,7 +239,19 @@ export default function Recommendations() {
                     <p className="font-medium text-sm text-ink dark:text-white truncate">{e.title}</p>
                     <p className="text-xs text-slate-500">{e.location} · {e.time}</p>
                   </div>
-                  <button className="btn-outline text-xs px-3 py-1.5">Register</button>
+                  {e.registered ? (
+                    <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 px-3 py-1.5">
+                      <CheckCircleIcon className="h-4 w-4" /> Registered
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleRegister(e.id)}
+                      disabled={registeringId === e.id}
+                      className="btn-outline text-xs px-3 py-1.5 disabled:opacity-50"
+                    >
+                      {registeringId === e.id ? 'Registering...' : 'Register'}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -143,7 +268,7 @@ export default function Recommendations() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-slate-500">{c.progress === 0 ? 'Not Started' : `${c.progress}% Completed`}</span>
-                    <button className="text-xs text-primary font-medium">Continue Learning</button>
+                    <button onClick={() => toast('Courses coming soon')} className="text-xs text-primary font-medium">Continue Learning</button>
                   </div>
                 </div>
               ))}
@@ -152,26 +277,54 @@ export default function Recommendations() {
         </div>
       </div>
 
+      {!assistantOpen && (
+        <button
+          onClick={() => setAssistantOpen(true)}
+          className="hidden xl:flex fixed top-24 right-8 items-center gap-2 pl-3 pr-4 h-12 rounded-full bg-gradient-to-br from-primary to-accent-500 shadow-lg z-10"
+        >
+          <SparklesIcon className="h-5 w-5 text-white" />
+          <span className="text-sm font-medium text-white">AI Assistant</span>
+        </button>
+      )}
+
       {assistantOpen && (
         <aside className="hidden xl:block fixed top-24 right-8 w-80 card p-5 z-10">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-heading font-semibold text-ink dark:text-white">Smart AI Assistant</h2>
+            <h2 className="font-heading font-semibold text-ink dark:text-white flex items-center gap-2">
+              <SparklesIcon className="h-4 w-4 text-primary" /> Smart AI Assistant
+            </h2>
             <button onClick={() => setAssistantOpen(false)} className="text-slate-400 hover:text-slate-600">
               <XMarkIcon className="h-5 w-5" />
             </button>
           </div>
-          <div className="h-16 w-16 rounded-full bg-gradient-to-br from-primary to-accent-500 mx-auto mb-4 flex items-center justify-center">
-            <SparklesIcon className="h-8 w-8 text-white" />
-          </div>
-          <div className="space-y-3">
-            {aiSuggestions.map((s, i) => (
-              <div key={i} className="rounded-xl bg-slate-50 dark:bg-primary-700 p-3.5 text-sm text-slate-600 dark:text-slate-300">
-                {s}
-                <button className="block text-xs text-primary font-medium mt-1.5">Learn more →</button>
+          <div className="space-y-2 max-h-72 overflow-y-auto mb-3">
+            {chatMessages.length === 0 && (
+              <p className="text-sm text-slate-400">Ask me anything about your matches or startup.</p>
+            )}
+            {chatMessages.map((m, i) => (
+              <div key={i} className={`rounded-xl p-3 text-sm max-w-[90%] ${m.role === 'user' ? 'bg-primary text-white ml-auto' : 'bg-slate-50 dark:bg-primary-700 text-slate-600 dark:text-slate-300'}`}>
+                {m.content}
               </div>
             ))}
+            {chatSending && <div className="text-xs text-slate-400">Thinking...</div>}
           </div>
-          <input placeholder="Ask the AI assistant..." className="input mt-4 text-sm" />
+          <div className="flex gap-2">
+            <input
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') sendChatMessage() }}
+              placeholder="Ask the AI assistant..."
+              className="input text-sm flex-1"
+              disabled={chatSending}
+            />
+            <button
+              onClick={sendChatMessage}
+              disabled={chatSending || !chatInput.trim()}
+              className="btn-primary px-3 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Send
+            </button>
+          </div>
         </aside>
       )}
     </div>
