@@ -128,11 +128,10 @@ export const startupAPI = {
 // FUNDING API
 // ============================================================
 export const fundingAPI = {
-  getAll: () => api.get('/api/funding'),
-  getById: (id) => api.get(`/api/funding/${id}/`),
-  create: (data) => api.post('/api/funding/', data),
-  update: (id, data) => api.put(`/api/funding/${id}/`, data),
-  delete: (id) => api.delete(`/api/funding/${id}/`),
+  submit: (data) => api.post('/api/funding/request', data),
+  mine: () => api.get('/api/funding/requests/mine'),
+  approve: (requestId, approvedAmount) => api.post(`/api/funding/requests/${requestId}/approve`, { approved_amount: approvedAmount }),
+  reject: (requestId, reason) => api.post(`/api/funding/requests/${requestId}/reject`, { reason }),
 }
 
 // ============================================================
@@ -144,7 +143,8 @@ export const grantAPI = {
   create: (data) => api.post('/api/grants/', data),
   update: (id, data) => api.put(`/api/grants/${id}/`, data),
   delete: (id) => api.delete(`/api/grants/${id}/`),
-  apply: (data) => api.post('/api/grants/apply/', data),
+  apply: (grantId, startupId, amountRequested) => api.post('/api/grants/apply', { grant_id: grantId, startup_id: startupId, amount_requested: amountRequested }),
+  updateApplicationStatus: (applicationId, status) => api.put(`/api/grants/applications/${applicationId}/status`, { status }),
   match: (startupData) => api.post('/api/grants/match', { startup_data: startupData }),
   getApplications: () => api.get('/api/grants/applications'),
   updateApplicationStatus: (id, status) => api.put(`/api/grants/applications/${id}/status/`, { status }),
