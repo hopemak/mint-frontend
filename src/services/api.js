@@ -130,6 +130,7 @@ export const startupAPI = {
 export const fundingAPI = {
   submit: (data) => api.post('/api/funding/request', data),
   mine: () => api.get('/api/funding/requests/mine'),
+  getAll: () => api.get('/api/funding/requests'),
   approve: (requestId, approvedAmount) => api.post(`/api/funding/requests/${requestId}/approve`, { approved_amount: approvedAmount }),
   reject: (requestId, reason) => api.post(`/api/funding/requests/${requestId}/reject`, { reason }),
 }
