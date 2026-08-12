@@ -147,7 +147,6 @@ export const grantAPI = {
   updateApplicationStatus: (applicationId, status) => api.put(`/api/grants/applications/${applicationId}/status`, { status }),
   match: (startupData) => api.post('/api/grants/match', { startup_data: startupData }),
   getApplications: () => api.get('/api/grants/applications'),
-  updateApplicationStatus: (id, status) => api.put(`/api/grants/applications/${id}/status/`, { status }),
 }
 
 // ============================================================
