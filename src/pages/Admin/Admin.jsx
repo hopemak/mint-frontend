@@ -153,7 +153,7 @@ export default function Admin() {
   const handleFundingApprove = async (requestId, amount) => {
     try {
       await fundingAPI.approve(requestId, amount)
-      setFundingRequests((prev) => prev.map((r) => (r.id === requestId || r._id === requestId) ? { ...r, status: 'approved', approved_amount: amount } : r))
+      setFundingRequests((prev) => prev.map((r) => r.request_id === requestId ? { ...r, status: 'approved', approved_amount: amount } : r))
       toast.success('Funding approved')
     } catch (err) {
       toast.error('Could not approve funding request')
@@ -164,7 +164,7 @@ export default function Admin() {
     const reason = window.prompt('Reason for rejection (optional):', '') || 'Not specified'
     try {
       await fundingAPI.reject(requestId, reason)
-      setFundingRequests((prev) => prev.map((r) => (r.id === requestId || r._id === requestId) ? { ...r, status: 'rejected' } : r))
+      setFundingRequests((prev) => prev.map((r) => r.request_id === requestId ? { ...r, status: 'rejected' } : r))
       toast.success('Funding rejected')
     } catch (err) {
       toast.error('Could not reject funding request')
@@ -561,10 +561,10 @@ export default function Admin() {
                 <p className="text-xs text-slate-500">${(r.amount || 0).toLocaleString()} requested {r.user_id ? `- user: ${r.user_id}` : ''}</p>
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                <button onClick={() => handleFundingApprove(r.id || r._id, r.amount)} className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-xs font-medium" title="Approve">
+                <button onClick={() => handleFundingApprove(r.request_id, r.amount)} className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-xs font-medium" title="Approve">
                   <CheckIcon className="h-4 w-4" /> <span>Approve</span>
                 </button>
-                <button onClick={() => handleFundingReject(r.id || r._id)} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 text-xs font-medium" title="Reject">
+                <button onClick={() => handleFundingReject(r.request_id)} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 text-xs font-medium" title="Reject">
                   <XMarkIcon className="h-4 w-4" /> <span>Reject</span>
                 </button>
               </div>
