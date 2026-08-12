@@ -128,6 +128,40 @@ function RequestsTab() {
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [actingId, setActingId] = useState(null)
+  const [showModal, setShowModal] = useState(false)
+  const [startups, setStartups] = useState([])
+  const [startupId, setStartupId] = useState('')
+  const [amount, setAmount] = useState('')
+  const [purpose, setPurpose] = useState('')
+  const [stage, setStage] = useState('Seed')
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    startupAPI.getMyStartups().then(({ data }) => {
+      const list = (data && data.data) ? data.data : data
+      const arr = Array.isArray(list) ? list : []
+      setStartups(arr)
+      if (arr[0]) setStartupId(arr[0].startup_id)
+    }).catch(() => setStartups([]))
+  }, [])
+
+  const submitRequest = async (e) => {
+    e.preventDefault()
+    if (!startupId || !amount || !purpose) return
+    setSubmitting(true)
+    try {
+      await fundingAPI.submit({ startup_id: startupId, amount: Number(amount), purpose: purpose.trim(), stage })
+      toast.success('Funding request submitted')
+      setShowModal(false)
+      setAmount('')
+      setPurpose('')
+      load()
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to submit request')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   const load = async () => {
     setLoading(true)
@@ -167,6 +201,9 @@ function RequestsTab() {
 
   return (
     <div>
+      <div className="flex justify-end mb-4">
+        <button onClick={() => setShowModal(true)} className="btn-primary text-sm">Request Funding</button>
+      </div>
       <div className="grid sm:grid-cols-2 gap-4 mb-6">
         <StatCard icon={BanknotesIcon} label="Total Requested" value={`$${totalRequested.toLocaleString()}`} />
         <StatCard icon={CheckCircleIcon} label="Approved" value={`$${approved.toLocaleString()}`} />
@@ -212,6 +249,34 @@ function RequestsTab() {
           </tbody>
         </table>
       </div>
+      {showModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowModal(false)}>
+          <form onSubmit={submitRequest} className="card p-6 max-w-md w-full space-y-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-heading font-semibold text-ink dark:text-white">Request Funding</h3>
+              <button type="button" onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600">
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <select value={startupId} onChange={(e) => setStartupId(e.target.value)} className="input text-sm w-full">
+              {startups.length === 0 && <option value="">No startups found</option>}
+              {startups.map((s) => (
+                <option key={s.startup_id} value={s.startup_id}>{(s.business_name || '').trim()}</option>
+              ))}
+            </select>
+            <input required type="number" min="1" placeholder="Amount ($)" value={amount} onChange={(e) => setAmount(e.target.value)} className="input text-sm w-full" />
+            <input required placeholder="Purpose" value={purpose} onChange={(e) => setPurpose(e.target.value)} className="input text-sm w-full" />
+            <select value={stage} onChange={(e) => setStage(e.target.value)} className="input text-sm w-full">
+              <option>Seed</option>
+              <option>Growth</option>
+              <option>Scale</option>
+            </select>
+            <button type="submit" disabled={submitting || startups.length === 0} className="btn-primary w-full py-2 text-sm mt-2 disabled:opacity-50">
+              {submitting ? 'Submitting...' : 'Submit Request'}
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   )
 }
