@@ -22,6 +22,7 @@ import {
   ideaAPI,
   mentorAPI,
   eventAPI,
+  fundingAPI,
 } from '../../services/api.js'
 
 const statusColor = {
@@ -52,6 +53,7 @@ export default function Admin() {
   const [securityAlerts, setSecurityAlerts] = useState([])
   const [grants, setGrants] = useState([])
   const [grantApps, setGrantApps] = useState([])
+  const [fundingRequests, setFundingRequests] = useState([])
   const [ideas, setIdeas] = useState([])
   const [mentors, setMentors] = useState([])
   const [events, setEvents] = useState([])
@@ -69,7 +71,7 @@ export default function Admin() {
   const loadAll = useCallback(async () => {
     setLoading(true)
     try {
-      const [usersRes, logsRes, alertsRes, grantsRes, appsRes, ideasRes, mentorsRes, eventsRes] =
+      const [usersRes, logsRes, alertsRes, grantsRes, appsRes, ideasRes, mentorsRes, eventsRes, fundingRes] =
         await Promise.all([
           userAPI.getAll().catch(() => null),
           auditAPI.getLogs().catch(() => null),
@@ -79,6 +81,7 @@ export default function Admin() {
           ideaAPI.getAll().catch(() => null),
           mentorAPI.getAll().catch(() => null),
           eventAPI.getAll().catch(() => null),
+          fundingAPI.getAll().catch(() => null),
         ])
 
       const extractData = (res) => {
@@ -87,6 +90,7 @@ export default function Admin() {
         return Array.isArray(d) ? d : []
       }
 
+      setFundingRequests(extractData(fundingRes))
       setUsers(extractData(usersRes))
       setAuditLog(extractData(logsRes))
       setSecurityAlerts(extractData(alertsRes))
@@ -143,6 +147,27 @@ export default function Admin() {
       toast.success(`Application ${status}`)
     } catch (err) {
       toast.error('Could not update application')
+    }
+  }
+
+  const handleFundingApprove = async (requestId, amount) => {
+    try {
+      await fundingAPI.approve(requestId, amount)
+      setFundingRequests((prev) => prev.map((r) => (r.id === requestId || r._id === requestId) ? { ...r, status: 'approved', approved_amount: amount } : r))
+      toast.success('Funding approved')
+    } catch (err) {
+      toast.error('Could not approve funding request')
+    }
+  }
+
+  const handleFundingReject = async (requestId) => {
+    const reason = window.prompt('Reason for rejection (optional):', '') || 'Not specified'
+    try {
+      await fundingAPI.reject(requestId, reason)
+      setFundingRequests((prev) => prev.map((r) => (r.id === requestId || r._id === requestId) ? { ...r, status: 'rejected' } : r))
+      toast.success('Funding rejected')
+    } catch (err) {
+      toast.error('Could not reject funding request')
     }
   }
 
@@ -520,6 +545,34 @@ export default function Admin() {
             </div>
           ))}
           {pendingGrants.length === 0 && <p className="text-sm text-slate-400">No pending applications.</p>}
+        </div>
+      </section>
+      {/* --- FUNDING REQUESTS --- */}
+      <section id="funding-section">
+        <h2 className="font-heading text-3xl font-bold text-ink dark:text-white mb-6 border-b border-slate-100 dark:border-primary-700 pb-3">
+          Funding Requests
+        </h2>
+        <p className="text-sm text-slate-500 mb-4">Review and decide on founder funding requests.</p>
+        <div className="space-y-2">
+          {fundingRequests.filter((r) => r.status === 'pending').map((r) => (
+            <div key={r.id || r._id} className="card p-3 flex items-center justify-between gap-2 text-sm">
+              <div className="min-w-0">
+                <p className="font-medium text-ink dark:text-white truncate">{r.stage || 'Funding Request'}</p>
+                <p className="text-xs text-slate-500">${(r.amount || 0).toLocaleString()} requested {r.user_id ? `- user: ${r.user_id}` : ''}</p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => handleFundingApprove(r.id || r._id, r.amount)} className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-xs font-medium" title="Approve">
+                  <CheckIcon className="h-4 w-4" /> <span>Approve</span>
+                </button>
+                <button onClick={() => handleFundingReject(r.id || r._id)} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 text-xs font-medium" title="Reject">
+                  <XMarkIcon className="h-4 w-4" /> <span>Reject</span>
+                </button>
+              </div>
+            </div>
+          ))}
+          {fundingRequests.filter((r) => r.status === 'pending').length === 0 && (
+            <p className="text-sm text-slate-400">No pending funding requests.</p>
+          )}
         </div>
       </section>
 
