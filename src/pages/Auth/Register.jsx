@@ -7,8 +7,9 @@ import { useAuth } from '../../context/AuthContext.jsx'
 import authHero from '../../assets/auth-hero.png'
 
 export default function Register() {
-  const { register: registerField, handleSubmit, formState: { errors, isSubmitting } } = useForm()
+  const { register: registerField, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm()
   const [showPassword, setShowPassword] = useState(false)
+  const selectedRole = watch('role', 'founder')
   const { register } = useAuth()
   const navigate = useNavigate()
 
@@ -99,6 +100,47 @@ export default function Register() {
                 <option value="investor">Investor</option>
               </select>
             </div>
+
+            {selectedRole === 'mentor' && (
+              <>
+                <div>
+                  <label className="label">Areas of Expertise</label>
+                  <input type="text" placeholder="e.g. Product Strategy, Fundraising" className="input" {...registerField('expertise_areas', { required: 'Expertise is required' })} />
+                  {errors.expertise_areas && <p className="text-xs text-red-500 mt-1">{errors.expertise_areas.message}</p>}
+                </div>
+                <div>
+                  <label className="label">Years of Experience</label>
+                  <input type="number" min="0" placeholder="e.g. 8" className="input" {...registerField('years_experience', { required: 'Years of experience is required', valueAsNumber: true })} />
+                  {errors.years_experience && <p className="text-xs text-red-500 mt-1">{errors.years_experience.message}</p>}
+                </div>
+              </>
+            )}
+
+            {selectedRole === 'investor' && (
+              <>
+                <div>
+                  <label className="label">Firm Name</label>
+                  <input type="text" placeholder="e.g. Acme Ventures" className="input" {...registerField('firm_name', { required: 'Firm name is required' })} />
+                  {errors.firm_name && <p className="text-xs text-red-500 mt-1">{errors.firm_name.message}</p>}
+                </div>
+                <div>
+                  <label className="label">Investment Focus</label>
+                  <input type="text" placeholder="e.g. Fintech, AgriTech" className="input" {...registerField('focus', { required: 'Focus is required' })} />
+                  {errors.focus && <p className="text-xs text-red-500 mt-1">{errors.focus.message}</p>}
+                </div>
+                <div>
+                  <label className="label">Investment Stage</label>
+                  <select className="input" {...registerField('investment_stage', { required: 'Investment stage is required' })}>
+                    <option value="">Select stage</option>
+                    <option value="Seed">Seed</option>
+                    <option value="Series A">Series A</option>
+                    <option value="Series B">Series B</option>
+                    <option value="Growth">Growth</option>
+                  </select>
+                  {errors.investment_stage && <p className="text-xs text-red-500 mt-1">{errors.investment_stage.message}</p>}
+                </div>
+              </>
+            )}
 
             <button type="submit" disabled={isSubmitting} className="btn-primary w-full py-3">
               {isSubmitting ? 'Creating account...' : 'Create Account'}
