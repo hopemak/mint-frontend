@@ -23,7 +23,7 @@ export default function Startups() {
 
   useEffect(() => {
     setLoading(true)
-    startupAPI.getAll()
+    startupAPI.getMyStartups()
       .then((res) => {
         const items = res.data?.data || res.data || []
         setData(items)
