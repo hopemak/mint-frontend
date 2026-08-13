@@ -95,13 +95,13 @@ export default function Register() {
             <div>
               <label className="label">Role</label>
               <select className="input" {...registerField('role', { required: true })} defaultValue="founder">
-                <option value="founder">Founder</option>
+                <option value="founder">Innovator</option>
                 <option value="mentor">Mentor</option>
                 <option value="investor">Investor</option>
               </select>
             </div>
 
-            {selectedRole === 'mentor' && (
+            {(selectedRole === 'mentor' || selectedRole === 'founder') && (
               <>
                 <div>
                   <label className="label">Areas of Expertise</label>
