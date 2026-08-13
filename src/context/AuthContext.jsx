@@ -42,8 +42,14 @@ export function AuthProvider({ children }) {
       console.log('✅ Login success:', userData.email)
       return { ok: true }
     } catch (err) {
-      console.warn('Login failed, using demo mode:', err.message)
-      const demoUser = { id: 'demo-1', name: 'Innovation Leader', email, role: 'Founder' }
+      if (err.response) {
+        // Backend responded with a real rejection (bad credentials, pending account, etc.) -- do NOT fake login
+        const message = err.response.data?.error || 'Login failed'
+        return { ok: false, error: message }
+      }
+      // No response at all means the backend is unreachable -- fall back to demo mode
+      console.warn('Backend unreachable, using demo mode:', err.message)
+      const demoUser = { id: 'demo-1', name: 'Innovation Leader', email, role: 'founder' }
       setUser(demoUser)
       localStorage.setItem('mint_user', JSON.stringify(demoUser))
       return { ok: true, demo: true }
@@ -62,6 +68,13 @@ export function AuthProvider({ children }) {
       }
       return { ok: true }
     } catch (err) {
+      if (err.response) {
+        // Backend responded with a real rejection (invalid role, duplicate email, etc.) -- do NOT fake registration
+        const message = err.response.data?.error || 'Registration failed'
+        return { ok: false, error: message }
+      }
+      // No response at all means the backend is unreachable -- fall back to demo mode
+      console.warn('Backend unreachable, using demo mode:', err.message)
       const demoUser = { id: 'demo-1', name: payload.fullName, email: payload.email, role: payload.role }
       setUser(demoUser)
       localStorage.setItem('mint_user', JSON.stringify(demoUser))
