@@ -64,7 +64,7 @@ export default function Workspace() {
 
   // â”€â”€â”€ LOAD PROJECTS â”€â”€â”€
   useEffect(() => {
-    startupAPI.getAll()
+    startupAPI.getMyStartups()
       .then((res) => {
         console.log('PROJECTS RAW:', res.data)
         const items = res.data?.data || res.data || []
@@ -266,7 +266,7 @@ const sprintStats = useMemo(() => {
     return (
       <div className="p-8">
         <PageHeader eyebrow="Workspace" title="Project Workspace" />
-        <EmptyState title="No projects yet" subtitle="Create a startup to start using the workspace." />" />
+        <EmptyState title="No projects yet" subtitle="Create a startup to start using the workspace." />
       </div>
     )
   }
