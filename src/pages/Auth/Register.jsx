@@ -13,12 +13,22 @@ export default function Register() {
   const navigate = useNavigate()
 
   const onSubmit = async (values) => {
-    const res = await register(values)
+    const payload = { ...values, full_name: values.fullName }
+    delete payload.fullName
+    const res = await register(payload)
     if (res.ok) {
-      toast.success(res.demo ? 'Account created (demo mode — backend offline)' : 'Account created!')
-      navigate('/dashboard')
+      if (res.demo) {
+        toast.success('Account created (demo mode — backend offline)')
+        navigate('/dashboard')
+      } else if (values.role === 'mentor' || values.role === 'investor') {
+        toast.success('Account created! Your account is pending admin approval before you can log in.')
+        navigate('/login')
+      } else {
+        toast.success('Account created!')
+        navigate('/dashboard')
+      }
     } else {
-      toast.error('Could not create account')
+      toast.error(res.error || 'Could not create account')
     }
   }
 
@@ -83,11 +93,10 @@ export default function Register() {
 
             <div>
               <label className="label">Role</label>
-              <select className="input" {...registerField('role', { required: true })} defaultValue="Founder">
-                <option>Founder</option>
-                <option>Mentor</option>
-                <option>Investor</option>
-                <option>Admin</option>
+              <select className="input" {...registerField('role', { required: true })} defaultValue="founder">
+                <option value="founder">Founder</option>
+                <option value="mentor">Mentor</option>
+                <option value="investor">Investor</option>
               </select>
             </div>
 
