@@ -373,7 +373,9 @@ export default function Admin() {
     setRequests(updated)
     
     toast.success("Approved! Code: " + code + " (copy and send to " + req.email + ")")
-  }  const handleSendCode = async (e) => {
+  }
+
+  const handleSendCode = async (e) => {
     e.preventDefault()
     if (!sendEmail.trim()) return toast.error('Email is required')
     try {
