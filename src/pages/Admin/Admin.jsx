@@ -358,7 +358,22 @@ export default function Admin() {
     setCodeForm({ prefix: 'MINT', count: 1 })
   }
 
-  const handleSendCode = async (e) => {
+
+
+  const handleApproveRequest = (req) => {
+    const code = "MINT-" + Math.random().toString(36).substring(2, 10).toUpperCase()
+    const savedCodes = JSON.parse(localStorage.getItem("mint_codes") || "[]")
+    savedCodes.push({ code, used: false, created_at: new Date().toISOString(), email: req.email })
+    localStorage.setItem("mint_codes", JSON.stringify(savedCodes))
+    setCodes(savedCodes)
+    
+    const savedReqs = JSON.parse(localStorage.getItem("mint_requests") || "[]")
+    const updated = savedReqs.map(r => r.request_id === req.request_id ? { ...r, status: "approved", code } : r)
+    localStorage.setItem("mint_requests", JSON.stringify(updated))
+    setRequests(updated)
+    
+    toast.success("Approved! Code: " + code + " (copy and send to " + req.email + ")")
+  }  const handleSendCode = async (e) => {
     e.preventDefault()
     if (!sendEmail.trim()) return toast.error('Email is required')
     try {
@@ -684,7 +699,7 @@ export default function Admin() {
 
         <h3 className="font-heading text-lg font-semibold text-ink dark:text-white mb-3">Active Programs</h3>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
-          {grants.map((g) => (
+          {grants.map((g, gi) => (
             <div key={g.id || g._id} className="card p-4">
               <div className="flex items-start justify-between">
                 <div className="min-w-0">
@@ -708,7 +723,7 @@ export default function Admin() {
 
         <h3 className="font-heading text-lg font-semibold text-ink dark:text-white mb-3">Pending Applications ({pendingGrants.length})</h3>
         <div className="space-y-2">
-          {pendingGrants.map((g) => (
+          {pendingGrants.map((g, pgi) => (
             <div key={g.id || g._id} className="card p-3 flex items-center justify-between gap-2 text-sm">
               <div className="min-w-0">
                 <p className="font-medium text-ink dark:text-white truncate">{g.grant_name || g.grant_id || 'Unknown Grant'}</p>
@@ -734,7 +749,7 @@ export default function Admin() {
         </h2>
         <p className="text-sm text-slate-500 mb-4">Review and decide on founder funding requests.</p>
         <div className="space-y-2">
-          {fundingRequests.filter((r) => r.status === 'pending').map((r) => (
+          {fundingRequests.filter((r) => r.status === 'pending').map((r, ri) => (
             <div key={r.id || r._id} className="card p-3 flex items-center justify-between gap-2 text-sm">
               <div className="min-w-0">
                 <p className="font-medium text-ink dark:text-white truncate">{r.stage || 'Funding Request'}</p>
@@ -763,7 +778,7 @@ export default function Admin() {
         </h2>
         <p className="text-sm text-slate-500 mb-4">Review submitted ideas and run AI evaluations.</p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {ideas.map((idea) => (
+          {ideas.map((idea, ii) => (
             <div key={idea.id || idea._id} className="card p-4">
               <div className="flex items-start justify-between">
                 <div className="min-w-0">
@@ -832,7 +847,7 @@ export default function Admin() {
         )}
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {mentors.map((m) => (
+          {mentors.map((m, mi) => (
             <div key={m.id || m._id} className="card p-4">
               <div className="flex items-start justify-between">
                 <div>
