@@ -40,7 +40,15 @@ export default function Register() {
     e.preventDefault()
     if (!requestEmail.trim()) return toast.error('Email is required')
     try {
-      await adminAPI.submitRequest({ email: requestEmail, role: selectedRole })
+      const existing = JSON.parse(localStorage.getItem('mint_requests') || '[]')
+      const newRequest = {
+        request_id: 'REQ-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
+        email: requestEmail.trim(),
+        role: selectedRole,
+        status: 'pending',
+        created_at: new Date().toISOString()
+      }
+      localStorage.setItem('mint_requests', JSON.stringify([...existing, newRequest]))
       toast.success('Access request submitted! Admin will review and send code to your email.')
       setRequestSent(true)
     } catch (err) {
