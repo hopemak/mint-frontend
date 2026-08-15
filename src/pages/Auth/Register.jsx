@@ -36,6 +36,18 @@ export default function Register() {
     }
   }
 
+  const handleRequestAccess = async (e) => {
+    e.preventDefault()
+    if (!requestEmail.trim()) return toast.error('Email is required')
+    try {
+      await adminAPI.submitRequest({ email: requestEmail, role: selectedRole })
+      toast.success('Access request submitted! Admin will review and send code to your email.')
+      setRequestSent(true)
+    } catch (err) {
+      toast.error('Could not submit request')
+    }
+  }
+
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-white dark:bg-primary-900">
       <div className="flex flex-col justify-center px-6 sm:px-16 py-12">
