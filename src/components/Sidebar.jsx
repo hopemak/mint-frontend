@@ -13,23 +13,28 @@ import {
   RectangleGroupIcon,
 } from '@heroicons/react/24/outline'
 import mintLogo from '../assets/mint-logo.png'
+import { useAuth } from '../context/AuthContext.jsx'
 
 const nav = [
-  { to: '/dashboard', label: 'Dashboard', icon: Squares2X2Icon },
-  { to: '/startups', label: 'Startups', icon: RocketLaunchIcon },
-  { to: '/idea-submission', label: 'Submit Idea', icon: LightBulbIcon },
-  { to: '/evaluate', label: 'AI Evaluation', icon: SparklesIcon },
-  { to: '/workspace', label: 'Workspace', icon: RectangleGroupIcon },
-  { to: '/prototype', label: 'Prototype', icon: RocketLaunchIcon },
-  { to: '/recommendations', label: 'AI Recommendations', icon: SparklesIcon },
-  { to: '/mentors', label: 'Find a Mentor', icon: UserGroupIcon },
-  { to: '/funding', label: 'Funding & Grants', icon: BanknotesIcon },
-  { to: '/analytics', label: 'Analytics', icon: ChartBarIcon },
-  { to: '/chatbot', label: 'AI Assistant', icon: ChatBubbleLeftRightIcon },
-  { to: '/admin', label: 'Admin', icon: ShieldCheckIcon },
+  { to: '/dashboard', label: 'Dashboard', icon: Squares2X2Icon, roles: ['founder', 'mentor', 'investor', 'admin'] },
+  { to: '/startups', label: 'Startups', icon: RocketLaunchIcon, roles: ['founder', 'admin'] },
+  { to: '/idea-submission', label: 'Submit Idea', icon: LightBulbIcon, roles: ['founder'] },
+  { to: '/evaluate', label: 'AI Evaluation', icon: SparklesIcon, roles: ['founder'] },
+  { to: '/workspace', label: 'Workspace', icon: RectangleGroupIcon, roles: ['founder', 'admin'] },
+  { to: '/prototype', label: 'Prototype', icon: RocketLaunchIcon, roles: ['founder', 'admin'] },
+  { to: '/recommendations', label: 'AI Recommendations', icon: SparklesIcon, roles: ['founder'] },
+  { to: '/mentors', label: 'Find a Mentor', icon: UserGroupIcon, roles: ['founder', 'mentor', 'admin'] },
+  { to: '/funding', label: 'Funding & Grants', icon: BanknotesIcon, roles: ['founder', 'investor'] },
+  { to: '/analytics', label: 'Analytics', icon: ChartBarIcon, roles: ['founder', 'admin'] },
+  { to: '/chatbot', label: 'AI Assistant', icon: ChatBubbleLeftRightIcon, roles: ['founder'] },
+  { to: '/admin', label: 'Admin', icon: ShieldCheckIcon, roles: ['admin'] },
 ]
 
 export default function Sidebar({ open, onClose }) {
+  const { user } = useAuth()
+  const role = String(user?.role || '').toLowerCase()
+  const visibleNav = nav.filter((item) => item.roles.includes(role))
+
   return (
     <>
       {open && (
@@ -44,7 +49,7 @@ export default function Sidebar({ open, onClose }) {
           <img src={mintLogo} alt="MInT" className="h-9 w-auto bg-white rounded-md p-1" />
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-          {nav.map((item) => (
+          {visibleNav.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

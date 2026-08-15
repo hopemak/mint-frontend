@@ -8,6 +8,7 @@ import {
   CheckIcon,
   XMarkIcon,
   PlusIcon,
+  EnvelopeIcon,
   UsersIcon,
   BanknotesIcon,
   LightBulbIcon,
@@ -63,6 +64,10 @@ export default function Admin() {
   const [showCreateGrant, setShowCreateGrant] = useState(false)
   const [showCreateMentor, setShowCreateMentor] = useState(false)
   const [showCreateEvent, setShowCreateEvent] = useState(false)
+  const [showCreateCode, setShowCreateCode] = useState(false)
+  const [codes, setCodes] = useState([])
+  const [codeForm, setCodeForm] = useState({ prefix: "MINT", count: 1 })
+
     
   const [grantForm, setGrantForm] = useState({ grant_name: '', program: '', max_amount: '', min_amount: '', deadline: '', sectors: '' })
   const [mentorForm, setMentorForm] = useState({ full_name: '', expertise_areas: '', years_experience: '', email: '', bio: '' })
@@ -71,7 +76,7 @@ export default function Admin() {
   const loadAll = useCallback(async () => {
     setLoading(true)
     try {
-      const [usersRes, logsRes, alertsRes, grantsRes, appsRes, ideasRes, mentorsRes, eventsRes, fundingRes] =
+      const [usersRes, logsRes, alertsRes, grantsRes, appsRes, ideasRes, mentorsRes, eventsRes, fundingRes, codesRes] =
         await Promise.all([
           userAPI.getAll().catch(() => null),
           auditAPI.getLogs().catch(() => null),
@@ -122,8 +127,32 @@ export default function Admin() {
   const handleStatusChange = async (userId, newStatus) => {
     try {
       await userAPI.updateStatus(userId, newStatus)
+      const target = users.find((u) => u.id === userId || u._id === userId)
       setUsers((prev) => prev.map((u) => (u.id === userId || u._id === userId) ? { ...u, status: newStatus } : u))
       toast.success('Status updated')
+
+      // When approving a pending mentor/investor, create their public profile so they appear in matching
+      if (newStatus === 'active' && target && target.status === 'pending') {
+        try {
+          if (target.role === 'mentor') {
+            await mentorAPI.create({
+              full_name: target.full_name,
+              expertise_areas: target.expertise_areas || '',
+              years_experience: target.years_experience || 0,
+            })
+            toast.success('Mentor profile created')
+          } else if (target.role === 'investor') {
+            await investorAPI.create({
+              firm_name: target.firm_name || target.full_name,
+              focus: target.focus || '',
+              investment_stage: target.investment_stage || '',
+            })
+            toast.success('Investor profile created')
+          }
+        } catch (profileErr) {
+          toast.error('Approved, but could not create public profile — add manually if needed')
+        }
+      }
     } catch (err) {
       toast.error('Could not update status')
     }
@@ -308,6 +337,51 @@ export default function Admin() {
     }
   }
 
+  const handleCreateCode = (e) => {
+    e.preventDefault()
+    const prefix = codeForm.prefix || 'MINT'
+    const count = Math.min(Number(codeForm.count) || 1, 50)
+    const existing = JSON.parse(localStorage.getItem('mint_codes') || '[]')
+    const generated = []
+    for (let i = 0; i < count; i++) {
+      const code = prefix + '-' + Math.random().toString(36).substring(2, 10).toUpperCase()
+      generated.push({ code, used: false, created_at: new Date().toISOString() })
+    }
+    const all = [...existing, ...generated]
+    localStorage.setItem('mint_codes', JSON.stringify(all))
+    setCodes(all)
+    toast.success(generated.length + ' code(s) generated')
+    setShowCreateCode(false)
+    setCodeForm({ prefix: 'MINT', count: 1 })
+  }
+
+  const handleSendCode = async (e) => {
+    e.preventDefault()
+    if (!sendEmail.trim()) return toast.error('Email is required')
+    try {
+      const res = await adminAPI.sendCode({ email: sendEmail.trim() })
+      const data = res.data
+      if (data.emailed) {
+        toast.success('Code sent to ' + sendEmail)
+      } else {
+        toast.success('Code generated: ' + data.code + ' (copy manually)')
+      }
+      setShowSendEmail(false)
+      setSendEmail('')
+      // Refresh codes list
+      const saved = JSON.parse(localStorage.getItem('mint_codes') || '[]')
+      setCodes(saved)
+    } catch (err) {
+      toast.error('Could not send code')
+    }
+  }
+
+  // Load codes from localStorage on mount
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem('mint_codes') || '[]')
+    setCodes(saved)
+  }, [])
+
   const filteredUsers = users.filter((u) =>
     (u.full_name || u.name || '').toLowerCase().includes(userQuery.toLowerCase()) ||
     (u.email || '').toLowerCase().includes(userQuery.toLowerCase())
@@ -375,6 +449,80 @@ export default function Admin() {
             <p className="font-medium text-ink dark:text-white">Schedule Event</p>
             <p className="text-xs text-slate-500">Workshop, demo day, or meeting</p>
           </button>
+        </div>
+      </section>
+
+      {/* --- INSTITUTION CODES --- */}
+      <section>
+        <h2 className="font-heading text-3xl font-bold text-ink dark:text-white mb-6 border-b border-slate-100 dark:border-primary-700 pb-2">
+          Institution Codes
+        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-sm text-slate-500">Generate and manage unique institution IDs for mentor/investor registration.</p>
+          <div className="flex gap-2">
+            <button onClick={() => setShowSendEmail(!showSendEmail)} className="btn btn-outline text-sm flex items-center gap-1">
+              <EnvelopeIcon className="h-4 w-4" /> Send via Email
+            </button>
+            <button onClick={() => setShowCreateCode(!showCreateCode)} className="btn btn-primary text-sm flex items-center gap-1">
+              <PlusIcon className="h-4 w-4" /> Generate Codes
+            </button>
+          </div>
+        </div>
+
+        {showSendEmail && (
+          <form onSubmit={handleSendCode} className="card p-4 mb-4 flex gap-3 max-w-lg">
+            <input
+              type="email"
+              placeholder="user@example.com"
+              className="input text-sm flex-1"
+              value={sendEmail}
+              onChange={(e) => setSendEmail(e.target.value)}
+              required
+            />
+            <button type="submit" className="btn btn-primary text-sm">Send Code</button>
+            <button type="button" onClick={() => setShowSendEmail(false)} className="btn btn-outline text-sm">Cancel</button>
+          </form>
+        )}
+
+        {showCreateCode && (
+          <form onSubmit={handleCreateCode} className="card p-4 mb-4 grid sm:grid-cols-3 gap-3 max-w-lg">
+            <input
+              placeholder="Prefix (e.g. MINT)"
+              className="input text-sm"
+              value={codeForm.prefix}
+              onChange={(e) => setCodeForm({ ...codeForm, prefix: e.target.value })}
+            />
+            <input
+              type="number"
+              min="1"
+              max="50"
+              placeholder="Count"
+              className="input text-sm"
+              value={codeForm.count}
+              onChange={(e) => setCodeForm({ ...codeForm, count: e.target.value })}
+            />
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setShowCreateCode(false)} className="btn btn-outline text-sm flex-1">Cancel</button>
+              <button type="submit" className="btn btn-primary text-sm flex-1">Generate</button>
+            </div>
+          </form>
+        )}
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+          {codes.map((c) => (
+            <div key={c.code} className={`card p-3 ${c.used ? 'opacity-60' : ''}`}>
+              <div className="flex items-center justify-between">
+                <p className="font-mono text-sm font-bold text-primary">{c.code}</p>
+                <span className={`text-xs px-2 py-0.5 rounded-full ${c.used ? 'bg-slate-100 text-slate-500' : 'bg-emerald-100 text-emerald-700'}`}>
+                  {c.used ? 'Used' : 'Available'}
+                </span>
+              </div>
+              {c.used && c.used_by && (
+                <p className="text-xs text-slate-400 mt-1">Used by: {c.used_by}</p>
+              )}
+            </div>
+          ))}
+          {codes.length === 0 && <p className="text-sm text-slate-400 col-span-full">No codes generated yet.</p>}
         </div>
       </section>
 

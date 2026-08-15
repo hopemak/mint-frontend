@@ -4,12 +4,15 @@ import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
 import { EyeIcon, EyeSlashIcon, UserIcon, EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline'
 import { useAuth } from '../../context/AuthContext.jsx'
+import { adminAPI } from '../../services/api.js'
 import authHero from '../../assets/auth-hero.png'
 
 export default function Register() {
   const { register: registerField, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm()
   const [showPassword, setShowPassword] = useState(false)
   const selectedRole = watch('role', 'founder')
+  const [requestEmail, setRequestEmail] = useState('')
+  const [requestSent, setRequestSent] = useState(false)
   const { register } = useAuth()
   const navigate = useNavigate()
 
@@ -99,6 +102,26 @@ export default function Register() {
                 <option value="mentor">Mentor</option>
                 <option value="investor">Investor</option>
               </select>
+            </div>
+
+            <div className="card p-4 bg-slate-50 dark:bg-primary-800 border border-slate-200 dark:border-primary-700">
+              <p className="text-sm font-medium text-ink dark:text-white mb-2">Need an Institution Code?</p>
+              <p className="text-xs text-slate-500 mb-3">Request access and admin will send a code to your email.</p>
+              {requestSent ? (
+                <p className="text-sm text-emerald-600 font-medium">Request sent! Check your email soon.</p>
+              ) : (
+                <form onSubmit={handleRequestAccess} className="flex gap-2">
+                  <input
+                    type="email"
+                    placeholder="your@email.com"
+                    className="input text-sm flex-1"
+                    value={requestEmail}
+                    onChange={(e) => setRequestEmail(e.target.value)}
+                    required
+                  />
+                  <button type="submit" className="btn btn-primary text-sm whitespace-nowrap">Request</button>
+                </form>
+              )}
             </div>
 
             {(selectedRole === 'mentor' || selectedRole === 'founder') && (

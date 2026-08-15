@@ -264,6 +264,18 @@ export const auditAPI = {
 }
 
 // ============================================================
+// ADMIN API
+// ============================================================
+export const adminAPI = {
+  getCodes: () => api.get('/api/admin/codes'),
+  createCode: (data) => api.post('/api/admin/codes', data),
+  sendCode: (data) => api.post('/api/admin/codes/send', data),
+  getRequests: () => api.get('/api/admin/codes/requests'),
+  submitRequest: (data) => api.post('/api/admin/codes/requests', data),
+  approveRequest: (data) => api.post('/api/admin/codes/approve', data),
+}
+
+// ============================================================
 // VERSION CONTROL API
 // ============================================================
 export const versionControlAPI = {
