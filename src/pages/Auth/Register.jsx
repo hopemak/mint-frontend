@@ -116,6 +116,17 @@ export default function Register() {
               </select>
             </div>
 
+            <div>
+              <label className="label">Institution ID</label>
+              <input
+                type="text"
+                placeholder="Enter your institution code (e.g. MINT-ABC123)"
+                className="input"
+                {...registerField('institution_code', { required: 'Institution ID is required' })}
+              />
+              {errors.institution_code && <p className="text-xs text-red-500 mt-1">{errors.institution_code.message}</p>}
+            </div>
+
             <div className="card p-4 bg-slate-50 dark:bg-primary-800 border border-slate-200 dark:border-primary-700">
               <p className="text-sm font-medium text-ink dark:text-white mb-2">Need an Institution Code?</p>
               <p className="text-xs text-slate-500 mb-3">Request access and admin will send a code to your email.</p>
