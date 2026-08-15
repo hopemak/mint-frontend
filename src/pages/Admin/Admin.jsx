@@ -66,7 +66,10 @@ export default function Admin() {
   const [showCreateEvent, setShowCreateEvent] = useState(false)
   const [showCreateCode, setShowCreateCode] = useState(false)
   const [codes, setCodes] = useState([])
+  const [requests, setRequests] = useState([])
   const [codeForm, setCodeForm] = useState({ prefix: "MINT", count: 1 })
+  const [sendEmail, setSendEmail] = useState('')
+  const [showSendEmail, setShowSendEmail] = useState(false)
 
     
   const [grantForm, setGrantForm] = useState({ grant_name: '', program: '', max_amount: '', min_amount: '', deadline: '', sectors: '' })
@@ -509,8 +512,8 @@ export default function Admin() {
         )}
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-          {codes.map((c) => (
-            <div key={c.code} className={`card p-3 ${c.used ? 'opacity-60' : ''}`}>
+          {codes.map((c, idx) => (
+            <div key={c.code || i} className={`card p-3 ${c.used ? 'opacity-60' : ''}`}>
               <div className="flex items-center justify-between">
                 <p className="font-mono text-sm font-bold text-primary">{c.code}</p>
                 <span className={`text-xs px-2 py-0.5 rounded-full ${c.used ? 'bg-slate-100 text-slate-500' : 'bg-emerald-100 text-emerald-700'}`}>
@@ -523,6 +526,35 @@ export default function Admin() {
             </div>
           ))}
           {codes.length === 0 && <p className="text-sm text-slate-400 col-span-full">No codes generated yet.</p>}
+        </div>
+
+        <h3 className="font-heading text-xl font-bold text-ink dark:text-white mb-4 mt-8">Pending Access Requests</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 dark:border-primary-700 text-left text-slate-500">
+                <th className="pb-2 pr-4">Email</th>
+                <th className="pb-2 pr-4">Role</th>
+                <th className="pb-2 pr-4">Status</th>
+                <th className="pb-2">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {requests.filter(r => r.status === 'pending').map((req, idx) => (
+                <tr key={req.request_id || idx} className="border-b border-slate-100 dark:border-primary-800">
+                  <td className="py-3 pr-4">{req.email}</td>
+                  <td className="py-3 pr-4 capitalize">{req.role}</td>
+                  <td className="py-3 pr-4"><span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Pending</span></td>
+                  <td className="py-3">
+                    <button onClick={() => handleApproveRequest(req)} className="btn btn-primary text-xs">Approve & Generate</button>
+                  </td>
+                </tr>
+              ))}
+              {requests.filter(r => r.status === 'pending').length === 0 && (
+                <tr><td colSpan="4" className="py-4 text-slate-400 text-center">No pending requests</td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </section>
 
