@@ -22,6 +22,7 @@ import {
   grantAPI,
   ideaAPI,
   mentorAPI,
+  investorAPI,
   eventAPI,
   fundingAPI,
 } from '../../services/api.js'
@@ -340,39 +341,32 @@ export default function Admin() {
     }
   }
 
-  const handleCreateCode = (e) => {
+  const handleCreateCode = async (e) => {
     e.preventDefault()
     const prefix = codeForm.prefix || 'MINT'
     const count = Math.min(Number(codeForm.count) || 1, 50)
-    const existing = JSON.parse(localStorage.getItem('mint_codes') || '[]')
-    const generated = []
-    for (let i = 0; i < count; i++) {
-      const code = prefix + '-' + Math.random().toString(36).substring(2, 10).toUpperCase()
-      generated.push({ code, used: false, created_at: new Date().toISOString() })
+    try {
+      const res = await adminAPI.createCode({ prefix, count })
+      toast.success(res.data.message || (res.data.codes.length + ' code(s) generated'))
+      setShowCreateCode(false)
+      setCodeForm({ prefix: 'MINT', count: 1 })
+      const codesRes = await adminAPI.getCodes()
+      setCodes(codesRes.data.codes || [])
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Could not generate codes')
     }
-    const all = [...existing, ...generated]
-    localStorage.setItem('mint_codes', JSON.stringify(all))
-    setCodes(all)
-    toast.success(generated.length + ' code(s) generated')
-    setShowCreateCode(false)
-    setCodeForm({ prefix: 'MINT', count: 1 })
   }
 
-
-
-  const handleApproveRequest = (req) => {
-    const code = "MINT-" + Math.random().toString(36).substring(2, 10).toUpperCase()
-    const savedCodes = JSON.parse(localStorage.getItem("mint_codes") || "[]")
-    savedCodes.push({ code, used: false, created_at: new Date().toISOString(), email: req.email })
-    localStorage.setItem("mint_codes", JSON.stringify(savedCodes))
-    setCodes(savedCodes)
-    
-    const savedReqs = JSON.parse(localStorage.getItem("mint_requests") || "[]")
-    const updated = savedReqs.map(r => r.request_id === req.request_id ? { ...r, status: "approved", code } : r)
-    localStorage.setItem("mint_requests", JSON.stringify(updated))
-    setRequests(updated)
-    
-    toast.success("Approved! Code: " + code + " (copy and send to " + req.email + ")")
+  const handleApproveRequest = async (req) => {
+    try {
+      const res = await adminAPI.approveRequest({ request_id: req.request_id })
+      toast.success(res.data.message || ('Approved! Code: ' + res.data.code))
+      const [codesRes, requestsRes] = await Promise.all([adminAPI.getCodes(), adminAPI.getRequests()])
+      setCodes(codesRes.data.codes || [])
+      setRequests(requestsRes.data.requests || [])
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Could not approve request')
+    }
   }
 
   const handleSendCode = async (e) => {
@@ -388,18 +382,24 @@ export default function Admin() {
       }
       setShowSendEmail(false)
       setSendEmail('')
-      // Refresh codes list
-      const saved = JSON.parse(localStorage.getItem('mint_codes') || '[]')
-      setCodes(saved)
+      const codesRes = await adminAPI.getCodes()
+      setCodes(codesRes.data.codes || [])
     } catch (err) {
-      toast.error('Could not send code')
+      toast.error(err.response?.data?.error || 'Could not send code')
     }
   }
 
-  // Load codes from localStorage on mount
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem('mint_codes') || '[]')
-    setCodes(saved)
+    async function loadCodesAndRequests() {
+      try {
+        const [codesRes, requestsRes] = await Promise.all([adminAPI.getCodes(), adminAPI.getRequests()])
+        setCodes(codesRes.data.codes || [])
+        setRequests(requestsRes.data.requests || [])
+      } catch (err) {
+        // best-effort
+      }
+    }
+    loadCodesAndRequests()
   }, [])
 
   const filteredUsers = users.filter((u) =>
