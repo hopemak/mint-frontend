@@ -25,6 +25,7 @@ import {
   investorAPI,
   eventAPI,
   fundingAPI,
+  adminAPI,
 } from '../../services/api.js'
 
 const statusColor = {
@@ -396,7 +397,8 @@ export default function Admin() {
         setCodes(codesRes.data.codes || [])
         setRequests(requestsRes.data.requests || [])
       } catch (err) {
-        // best-effort
+        console.error('Failed to load codes/requests:', err.response?.status, err.response?.data)
+        toast.error('Could not load institution codes/requests: ' + (err.response?.data?.error || err.message))
       }
     }
     loadCodesAndRequests()
