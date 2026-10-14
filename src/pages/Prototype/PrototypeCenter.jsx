@@ -95,12 +95,19 @@ export default function PrototypeCenter() {
         const prompt = `Given this startup: "${startup.business_name?.trim()}" in the ${startup.sector} sector. Description: ${startup.description?.slice(0, 300) || 'No description provided.'}\n\nRecommend exactly 6 technologies for building this. Respond ONLY with a valid JSON array, no other text, in this exact format: [{"name": "React", "reason": "short reason under 10 words", "recommended": true}]. Mark the 2 most important ones as recommended: true, others false.`
         const res = await mlAPI.chat(prompt, {})
         const reply = res?.data?.data?.reply || ''
-        const jsonMatch = reply.match(/\[[\s\S]*\]/)
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0])
-          setTechRecs(Array.isArray(parsed) ? parsed : [])
+        const cleaned = reply.replace(/```(?:json)?/gi, '').trim()
+        if (/^Error:/i.test(cleaned)) {
+          setTechRecsError(cleaned)
         } else {
-          setTechRecsError("Couldn't parse AI response. Try refreshing.")
+          let parsed = null
+          const jsonMatch = cleaned.match(/\[[\s\S]*\]/)
+          if (jsonMatch) { try { parsed = JSON.parse(jsonMatch[0]) } catch { parsed = null } }
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setTechRecs(parsed)
+          } else {
+            console.error('TechRecs unparsable reply:', reply)
+            setTechRecsError("Couldn't parse AI response. Try refreshing.")
+          }
         }
       } catch (err) {
         setTechRecsError('Could not reach the AI service.')

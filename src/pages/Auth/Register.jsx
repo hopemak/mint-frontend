@@ -4,57 +4,47 @@ import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
 import { EyeIcon, EyeSlashIcon, UserIcon, EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline'
 import { useAuth } from '../../context/AuthContext.jsx'
-import { adminAPI } from '../../services/api.js'
 import authHero from '../../assets/auth-hero.png'
 
 export default function Register() {
   const { register: registerField, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm()
   const [showPassword, setShowPassword] = useState(false)
   const selectedRole = watch('role', 'founder')
-  const [requestEmail, setRequestEmail] = useState('')
-  const [requestSent, setRequestSent] = useState(false)
   const { register } = useAuth()
   const navigate = useNavigate()
 
   const onSubmit = async (values) => {
     const payload = { ...values, full_name: values.fullName }
     delete payload.fullName
+
     const res = await register(payload)
-    if (res.ok) {
-      if (res.demo) {
-        toast.success('Account created (demo mode — backend offline)')
-        navigate('/dashboard')
-      } else if (values.role === 'mentor' || values.role === 'investor') {
-        toast.success('Account created! Your account is pending admin approval before you can log in.')
-        navigate('/login')
-      } else {
-        toast.success('Account created!')
-        navigate('/dashboard')
-      }
-    } else {
+
+    if (!res.ok) {
       toast.error(res.error || 'Could not create account')
+      return
+    }
+
+    if (res.requiresOtp) {
+      toast.success('Account created. Check your email for the verification code.')
+      navigate('/verify-registration-otp', {
+        state: { email: res.email }
+      })
+      return
+    }
+
+    // Preserve the existing legacy/demo registration behavior.
+    if (res.demo) {
+      toast.success('Account created (demo mode — backend offline)')
+      navigate('/dashboard')
+    } else if (values.role === 'mentor' || values.role === 'investor') {
+      toast.success('Account created! Your account is pending admin approval before you can log in.')
+      navigate('/login')
+    } else {
+      toast.success('Account created!')
+      navigate('/dashboard')
     }
   }
 
-  const handleRequestAccess = async (e) => {
-    e.preventDefault()
-    if (!requestEmail.trim()) return toast.error('Email is required')
-    try {
-      const existing = JSON.parse(localStorage.getItem('mint_requests') || '[]')
-      const newRequest = {
-        request_id: 'REQ-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
-        email: requestEmail.trim(),
-        role: selectedRole,
-        status: 'pending',
-        created_at: new Date().toISOString()
-      }
-      localStorage.setItem('mint_requests', JSON.stringify([...existing, newRequest]))
-      toast.success('Access request submitted! Admin will review and send code to your email.')
-      setRequestSent(true)
-    } catch (err) {
-      toast.error('Could not submit request')
-    }
-  }
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-white dark:bg-primary-900">
@@ -124,37 +114,6 @@ export default function Register() {
               </select>
             </div>
 
-            <div>
-              <label className="label">Institution ID</label>
-              <input
-                type="text"
-                placeholder="Enter your institution code (e.g. MINT-ABC123)"
-                className="input"
-                {...registerField('institution_code', { required: 'Institution ID is required' })}
-              />
-              {errors.institution_code && <p className="text-xs text-red-500 mt-1">{errors.institution_code.message}</p>}
-            </div>
-
-            <div className="card p-4 bg-slate-50 dark:bg-primary-800 border border-slate-200 dark:border-primary-700">
-              <p className="text-sm font-medium text-ink dark:text-white mb-2">Need an Institution Code?</p>
-              <p className="text-xs text-slate-500 mb-3">Request access and admin will send a code to your email.</p>
-              {requestSent ? (
-                <p className="text-sm text-emerald-600 font-medium">Request sent! Check your email soon.</p>
-              ) : (
-                <form onSubmit={handleRequestAccess} className="flex gap-2">
-                  <input
-                    type="email"
-                    placeholder="your@email.com"
-                    className="input text-sm flex-1"
-                    value={requestEmail}
-                    onChange={(e) => setRequestEmail(e.target.value)}
-                    required
-                  />
-                  <button type="submit" className="btn btn-primary text-sm whitespace-nowrap">Request</button>
-                </form>
-              )}
-            </div>
-
             {(selectedRole === 'mentor' || selectedRole === 'founder') && (
               <>
                 <div>
@@ -197,7 +156,7 @@ export default function Register() {
             )}
 
             <button type="submit" disabled={isSubmitting} className="btn-primary w-full py-3">
-              {isSubmitting ? 'Creating account...' : 'Create Account'}
+              {isSubmitting ? 'Creating account...' : 'Create Account & Verify Email'}
             </button>
 
             <p className="text-center text-sm text-slate-500">

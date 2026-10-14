@@ -23,36 +23,125 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     try {
-      const response = await api.post('/api/auth/login', { email, password })
+      const response = await api.post('/api/auth/login', {
+        email,
+        password
+      })
+
       const result = response.data
-      
-      // Backend returns { success: true, data: { user: {...}, token: "..." } }
-      const userData = result.data?.user || result.user
-      const token = result.data?.token || result.token
-      
-      if (!userData) {
-        console.error('Login response missing user data:', result)
-        throw new Error('No user data in response')
+
+      if (result.requires_otp) {
+        return {
+          ok: true,
+          requiresOtp: true,
+          email: result.data?.email || email
+        }
       }
-      
-      setUser(userData)
-      localStorage.setItem('mint_user', JSON.stringify(userData))
-      if (token) localStorage.setItem('mint_token', token)
-      
-      console.log('✅ Login success:', userData.email)
-      return { ok: true }
+
+      return {
+        ok: false,
+        error: 'Unexpected login response'
+      }
     } catch (err) {
       if (err.response) {
-        // Backend responded with a real rejection (bad credentials, pending account, etc.) -- do NOT fake login
         const message = err.response.data?.error || 'Login failed'
         return { ok: false, error: message }
       }
-      // No response at all means the backend is unreachable -- fall back to demo mode
-      console.warn('Backend unreachable, using demo mode:', err.message)
-      const demoUser = { id: 'demo-1', name: 'Innovation Leader', email, role: 'founder' }
-      setUser(demoUser)
-      localStorage.setItem('mint_user', JSON.stringify(demoUser))
-      return { ok: true, demo: true }
+
+      return {
+        ok: false,
+        error: 'Unable to connect to the backend'
+      }
+    }
+  }
+
+  const verifyOtp = async (email, otp) => {
+    try {
+      const response = await api.post('/api/auth/verify-otp', {
+        email,
+        otp
+      })
+
+      const result = response.data
+
+      const userData = result.data?.user || result.user
+      const token = result.data?.token || result.token
+
+      if (!userData || !token) {
+        return {
+          ok: false,
+          error: 'Invalid server response'
+        }
+      }
+
+      setUser(userData)
+      localStorage.setItem('mint_user', JSON.stringify(userData))
+      localStorage.setItem('mint_token', token)
+
+      return { ok: true }
+    } catch (err) {
+      if (err.response) {
+        return {
+          ok: false,
+          error: err.response.data?.error || 'Invalid verification code'
+        }
+      }
+
+      return {
+        ok: false,
+        error: 'Unable to connect to the backend'
+      }
+    }
+  }
+
+  const resendOtp = async (email) => {
+    try {
+      const response = await api.post('/api/auth/resend-otp', {
+        email
+      })
+
+      return {
+        ok: true,
+        message: response.data?.message
+      }
+    } catch (err) {
+      if (err.response) {
+        return {
+          ok: false,
+          error: err.response.data?.error || 'Could not resend code'
+        }
+      }
+
+      return {
+        ok: false,
+        error: 'Unable to connect to the backend'
+      }
+    }
+  }
+
+  const resendRegistrationOtp = async (email) => {
+    try {
+      const response = await api.post(
+        '/api/auth/resend-registration-otp',
+        { email }
+      )
+
+      return {
+        ok: true,
+        message: response.data?.message
+      }
+    } catch (err) {
+      if (err.response) {
+        return {
+          ok: false,
+          error: err.response.data?.error || 'Could not resend verification code'
+        }
+      }
+
+      return {
+        ok: false,
+        error: 'Unable to connect to the backend'
+      }
     }
   }
 
@@ -60,25 +149,68 @@ export function AuthProvider({ children }) {
     try {
       const response = await api.post('/api/auth/register', payload)
       const result = response.data
+
+      // New registration requires email verification before login.
+      if (result.requires_otp) {
+        return {
+          ok: true,
+          requiresOtp: true,
+          email: result.data?.email || payload.email
+        }
+      }
+
+      // Preserve compatibility with any legacy/demo response.
       const userData = result.data?.user || result.user
-      
+      const token = result.data?.token || result.token
+
       if (userData) {
         setUser(userData)
         localStorage.setItem('mint_user', JSON.stringify(userData))
       }
+
+      if (token) {
+        localStorage.setItem('mint_token', token)
+      }
+
       return { ok: true }
     } catch (err) {
       if (err.response) {
-        // Backend responded with a real rejection (invalid role, duplicate email, etc.) -- do NOT fake registration
-        const message = err.response.data?.error || 'Registration failed'
-        return { ok: false, error: message }
+        return {
+          ok: false,
+          error: err.response.data?.error || 'Registration failed'
+        }
       }
-      // No response at all means the backend is unreachable -- fall back to demo mode
-      console.warn('Backend unreachable, using demo mode:', err.message)
-      const demoUser = { id: 'demo-1', name: payload.fullName, email: payload.email, role: payload.role }
-      setUser(demoUser)
-      localStorage.setItem('mint_user', JSON.stringify(demoUser))
-      return { ok: true, demo: true }
+
+      return {
+        ok: false,
+        error: 'Unable to connect to the backend'
+      }
+    }
+  }
+
+  const verifyRegistrationOtp = async (email, otp) => {
+    try {
+      const response = await api.post(
+        '/api/auth/verify-registration-otp',
+        { email, otp }
+      )
+
+      return {
+        ok: true,
+        message: response.data?.message
+      }
+    } catch (err) {
+      if (err.response) {
+        return {
+          ok: false,
+          error: err.response.data?.error || 'Verification failed'
+        }
+      }
+
+      return {
+        ok: false,
+        error: 'Unable to connect to the backend'
+      }
     }
   }
 
@@ -89,7 +221,19 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        verifyOtp,
+        resendOtp,
+        register,
+        verifyRegistrationOtp,
+        resendRegistrationOtp,
+        logout
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )

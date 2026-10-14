@@ -279,7 +279,7 @@ export const adminAPI = {
 // VERSION CONTROL API
 // ============================================================
 export const versionControlAPI = {
-  getAll: () => api.get('/api/version-control/'),
+  getAll: () => api.get('/api/vcs/commits'),
   getById: (id) => api.get(`/api/version-control/${id}/`),
   create: (data) => api.post('/api/version-control/', data),
   update: (id, data) => api.put(`/api/version-control/${id}/`, data),

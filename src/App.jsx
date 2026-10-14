@@ -7,6 +7,7 @@ import RoleRoute from './components/RoleRoute.jsx'
 import Landing from './pages/Landing/Landing.jsx'
 import Login from './pages/Auth/Login.jsx'
 import Register from './pages/Auth/Register.jsx'
+import VerifyRegistrationOtp from './pages/Auth/VerifyRegistrationOtp.jsx'
 import Dashboard from './pages/Dashboard/Dashboard.jsx'
 import IdeaSubmission from './pages/Dashboard/IdeaSubmission.jsx'
 import Profile from './pages/Dashboard/Profile.jsx'
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/verify-registration-otp" element={<VerifyRegistrationOtp />} />
         <Route path="/mentors" element={<Mentors />} />
         <Route
           element={
