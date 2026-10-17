@@ -5,6 +5,7 @@ import Layout from './components/Layout.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import RoleRoute from './components/RoleRoute.jsx'
 import Landing from './pages/Landing/Landing.jsx'
+import InfoPage from './pages/Info/InfoPage.jsx'
 import Login from './pages/Auth/Login.jsx'
 import Register from './pages/Auth/Register.jsx'
 import VerifyRegistrationOtp from './pages/Auth/VerifyRegistrationOtp.jsx'
@@ -34,6 +35,9 @@ export default function App() {
       <Toaster position="top-right" toastOptions={{ style: { fontFamily: 'Inter, sans-serif', fontSize: '14px' } }} />
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/about" element={<InfoPage />} />
+        <Route path="/privacy" element={<InfoPage />} />
+        <Route path="/terms" element={<InfoPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/verify-registration-otp" element={<VerifyRegistrationOtp />} />

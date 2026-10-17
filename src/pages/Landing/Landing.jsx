@@ -339,7 +339,7 @@ export default function Landing() {
       {/* Footer */}
       <footer id="contact" className="border-t border-slate-100 py-12">
         <div className="max-w-7xl mx-auto px-6 flex flex-wrap items-start justify-between gap-8 text-sm mb-10">
-          <div className="grid sm:grid-cols-4 gap-8 flex-1">
+          <div className="grid sm:grid-cols-3 gap-8 flex-1">
             <div>
               <img src={mintLogo} alt="MInT" className="h-9 w-auto mb-3" />
               <p className="text-slate-500">Innovation Incubator Platform</p>
@@ -347,31 +347,16 @@ export default function Landing() {
             <div>
               <p className="font-medium text-ink mb-3">Company</p>
               <ul className="space-y-2 text-slate-500">
-                <li>About Us</li>
-                <li>Careers</li>
-              </ul>
-            </div>
-            <div>
-              <p className="font-medium text-ink mb-3">Resources</p>
-              <ul className="space-y-2 text-slate-500">
-                <li>Blog</li>
-                <li>Help Center</li>
+                <li><Link to="/about" className="hover:text-primary">About Us</Link></li>
               </ul>
             </div>
             <div>
               <p className="font-medium text-ink mb-3">Legal</p>
               <ul className="space-y-2 text-slate-500">
-                <li>Privacy Policy</li>
-                <li>Terms of Service</li>
+                <li><Link to="/privacy" className="hover:text-primary">Privacy Policy</Link></li>
+                <li><Link to="/terms" className="hover:text-primary">Terms of Service</Link></li>
               </ul>
             </div>
-          </div>
-          <div className="flex gap-2.5 shrink-0">
-            {['F', 'X', 'Y', 'I'].map((l) => (
-              <span key={l} className="h-8 w-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-xs font-semibold">
-                {l}
-              </span>
-            ))}
           </div>
         </div>
         <div className="max-w-7xl mx-auto px-6 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 pt-6 border-t border-slate-100">
