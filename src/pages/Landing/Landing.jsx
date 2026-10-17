@@ -119,6 +119,12 @@ const featured = [
 
 export default function Landing() {
   const [live, setLive] = useState(null)
+  const [liveTestimonials, setLiveTestimonials] = useState([])
+  useEffect(() => {
+    api.get('/api/public/testimonials')
+      .then((r) => setLiveTestimonials(r.data.testimonials || []))
+      .catch(() => setLiveTestimonials([]))
+  }, [])
   const [liveStartups, setLiveStartups] = useState([])
   useEffect(() => {
     api.get('/api/public/featured-startups')
@@ -244,13 +250,14 @@ export default function Landing() {
       </section>
 
       {/* Success stories */}
+      {liveTestimonials.length > 0 && (
       <section id="mentors" className="py-20 max-w-7xl mx-auto px-6">
         <div className="text-center max-w-2xl mx-auto mb-12">
           <h2 className="font-heading text-3xl font-semibold text-primary-800">Success Stories</h2>
           <p className="text-slate-500 mt-2">Testimonials from successful startups.</p>
         </div>
         <div className="grid md:grid-cols-3 gap-6">
-          {testimonials.map((t) => (
+          {liveTestimonials.map((t) => (
             <div key={t.name} className="card p-6">
               <p className="text-sm text-slate-600 leading-relaxed mb-5">&ldquo;{t.quote}&rdquo;</p>
               <div className="flex items-center gap-3 mb-3">
@@ -272,6 +279,7 @@ export default function Landing() {
           <span className="h-2 w-2 rounded-full bg-slate-200" />
         </div>
       </section>
+      )}
 
       {/* Featured startups */}
       <section id="startups" className="bg-primary-800 py-20 text-white">
