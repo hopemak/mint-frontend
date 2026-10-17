@@ -10,6 +10,7 @@ import {
   SparklesIcon,
   ShieldCheckIcon,
   ChatBubbleLeftRightIcon,
+  StarIcon,
   RectangleGroupIcon,
 } from '@heroicons/react/24/outline'
 import mintLogo from '../assets/mint-logo.png'
@@ -27,7 +28,9 @@ const nav = [
   { to: '/funding', label: 'Funding & Grants', icon: BanknotesIcon, roles: ['founder', 'investor'] },
   { to: '/analytics', label: 'Analytics', icon: ChartBarIcon, roles: ['founder', 'admin'] },
   { to: '/chatbot', label: 'AI Assistant', icon: ChatBubbleLeftRightIcon, roles: ['founder'] },
+  { to: '/share-story', label: 'Share Your Story', icon: StarIcon, roles: ['founder'] },
   { to: '/admin', label: 'Admin', icon: ShieldCheckIcon, roles: ['admin'] },
+  { to: '/admin/testimonials', label: 'Testimonials', icon: StarIcon, roles: ['admin'] },
 ]
 
 export default function Sidebar({ open, onClose }) {
