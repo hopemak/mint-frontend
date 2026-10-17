@@ -76,24 +76,24 @@ export default function InnovationMap() {
   ]
 
   return (
-    <section id="map" className="py-10 max-w-7xl mx-auto px-6">
-      <div className="text-center max-w-2xl mx-auto mb-5">
-        <h2 className="font-heading text-2xl font-semibold text-primary-800">Startup Capacity Across Ethiopia</h2>
-        <p className="text-slate-500 text-sm mt-1">Startups registered on the platform, shown by region.</p>
+    <section id="map" className="py-20 max-w-7xl mx-auto px-6">
+      <div className="text-center max-w-2xl mx-auto mb-10">
+        <h2 className="font-heading text-3xl font-semibold text-primary-800">Startup Capacity Across Ethiopia</h2>
+        <p className="text-slate-500 mt-2">Startups registered on the platform, shown by region.</p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         {stats.map((s) => (
-          <div key={s.label} className="card p-3">
-            <p className="font-heading text-lg font-semibold text-primary truncate" title={String(s.value)}>{s.value}</p>
+          <div key={s.label} className="card p-4">
+            <p className="font-heading text-xl font-semibold text-primary truncate" title={String(s.value)}>{s.value}</p>
             <p className="text-xs text-slate-500 mt-0.5">{s.label}</p>
           </div>
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-4 items-start">
-        <div className="card p-3 lg:col-span-2">
-          <svg viewBox={`0 0 ${MAP_W} ${MAP_H}`} role="group" aria-label="Map of Ethiopia showing the number of startups in each region" className="w-full h-auto max-h-[45vh] mx-auto">
+      <div className="grid lg:grid-cols-3 gap-6 items-start">
+        <div className="card p-4 lg:col-span-2">
+          <svg viewBox={`0 0 ${MAP_W} ${MAP_H}`} role="group" aria-label="Map of Ethiopia showing the number of startups in each region" className="w-full h-auto">
             {ordered.map((a) => (
               <path
                 key={a.id}
@@ -152,10 +152,14 @@ export default function InnovationMap() {
               <text x={barPx * 2} y="19" textAnchor="middle">200 km</text>
             </g>
           </svg>
+          <p className="text-[11px] text-slate-400 mt-2">
+            Illustrative map, not an official boundary document. Boundaries: public admin-level-1 dataset (2021), simplified.
+            Central and South Ethiopia regions were created after this dataset and are shown together as the former SNNP area.
+          </p>
         </div>
 
-        <div className="space-y-3">
-          <div className="card p-3">
+        <div className="space-y-4">
+          <div className="card p-4">
             <h3 className="font-heading text-sm font-semibold text-ink dark:text-white mb-1">Map key</h3>
             <p className="text-xs text-slate-500 mb-3">Number of startups per region</p>
             <ul className="space-y-1.5">
@@ -172,7 +176,7 @@ export default function InnovationMap() {
             </ul>
           </div>
 
-          <div className="card p-3">
+          <div className="card p-4">
             {selArea ? (
               <>
                 <div className="flex items-start justify-between gap-2">
@@ -198,7 +202,7 @@ export default function InnovationMap() {
               <>
                 <h3 className="font-heading text-sm font-semibold text-ink dark:text-white mb-3">Startups by region</h3>
                 <ul className="space-y-2">
-                  {ranked.slice(0, 5).map((a) => (
+                  {ranked.slice(0, 6).map((a) => (
                     <li key={a.id}>
                       <button onClick={() => setSel(a.id)} className="w-full text-left">
                         <div className="flex justify-between text-sm text-slate-600 dark:text-slate-300">
