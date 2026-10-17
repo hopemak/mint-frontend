@@ -308,3 +308,7 @@ export const milestoneAPI = {
   setDone: (id, completed) => api.put(`/api/milestones/${id}`, { completed }),
   remove: (id) => api.delete(`/api/milestones/${id}`),
 }
+
+export const pitchAPI = {
+  coach: (pitch, language) => api.post('/api/pitch/coach', { pitch, language }),
+}

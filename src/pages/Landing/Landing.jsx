@@ -11,6 +11,7 @@ import {
   ChevronRightIcon,
 } from '@heroicons/react/24/outline'
 import mintLogo from '../../assets/mint-logo.png'
+import InnovationMap from '../../components/InnovationMap.jsx'
 import heroAi from '../../assets/hero-ai.png'
 import partnerVisa from '../../assets/partner-visa.png'
 import partnerEthioTelecom from '../../assets/partner-ethiotelecom.jpg'
@@ -328,6 +329,8 @@ export default function Landing() {
       </section>
 
       {/* AI Features */}
+      <InnovationMap />
+
       <section id="funding" className="py-20 max-w-7xl mx-auto px-6">
         <div className="text-center max-w-2xl mx-auto mb-12">
           <h2 className="font-heading text-3xl font-semibold text-primary-800">AI Features</h2>
