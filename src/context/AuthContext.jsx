@@ -43,6 +43,7 @@ export function AuthProvider({ children }) {
         error: 'Unexpected login response'
       }
     } catch (err) {
+      console.error("LOGIN ERROR:", err.code, err.message, err.config?.url, err.config?.baseURL)
       if (err.response) {
         const message = err.response.data?.error || 'Login failed'
         return { ok: false, error: message }

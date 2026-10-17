@@ -8,7 +8,7 @@ export const api = axios.create({
     'Content-Type': 'application/json',
   },
   withCredentials: false,
-  timeout: 30000,
+  timeout: 90000,
 })
 
 // Add auth token to requests if available
