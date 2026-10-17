@@ -37,25 +37,24 @@ const PAGES = {
       },
       {
         h: '2. Types of Personal Data Collected',
-        p: ['The System collects and securely stores the following specific categories of data:'],
+        p: ['The System collects and stores the following specific categories of data:'],
         list: [
           'Personal Identifiers: Full name and email address.',
           'Account Credentials: Your password and email verification status, used to create and secure your account.',
           'Professional Information: Your role, areas of expertise, and years of experience.',
-          'Technical Analytics: System logs, including access timestamps, browser variations, and active user IP addresses.',
         ],
       },
       {
         h: '3. Roles, Access Control, and Data Minimization',
         p: [
-          'Data visualization and modification are governed by strict Role-Based Access Controls (RBAC) under a principles-of-necessity framework:',
+          'Access to data is governed by role-based access controls under a principle of necessity. The platform has three user roles:',
         ],
         list: [
-          'Innovator Applicants: Authorized only to view and modify their own personal profile data.',
-          'University Coordinators: Authorized to view student profiles and upload official validation records.',
-          'MInT Human Resources & Departmental Supervisors: Authorized to view application profiles, evaluation metrics, and assign applicants to programs.',
+          'Innovators: Authorized to view and modify their own profile data.',
+          'Mentors: Authorized to view and modify their own profile data.',
+          'Investors: Authorized to view and modify their own profile data.',
         ],
-        after: 'No third-party entities are granted access to this database without formal ministerial approval.',
+        after: "Information about other users is shown only to the extent required by the platform's features. Access by platform administrators is limited to what is necessary to operate and support the platform. No third-party entities are granted access to this database without formal ministerial approval.",
       },
       {
         h: '4. Data Retention, Erasure, and Subject Rights',
