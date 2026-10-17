@@ -93,7 +93,7 @@ export default function InnovationMap() {
 
       <div className="grid lg:grid-cols-3 gap-4 items-start">
         <div className="card p-3 lg:col-span-2">
-          <svg viewBox={`0 0 ${MAP_W} ${MAP_H}`} role="group" aria-label="Map of Ethiopia showing the number of startups in each region" className="w-full h-auto max-h-[52vh] mx-auto">
+          <svg viewBox={`0 0 ${MAP_W} ${MAP_H}`} role="group" aria-label="Map of Ethiopia showing the number of startups in each region" className="w-full h-auto max-h-[45vh] mx-auto">
             {ordered.map((a) => (
               <path
                 key={a.id}
@@ -152,10 +152,6 @@ export default function InnovationMap() {
               <text x={barPx * 2} y="19" textAnchor="middle">200 km</text>
             </g>
           </svg>
-          <p className="text-[10px] text-slate-400 mt-1">
-            Illustrative map, not an official boundary document. Boundaries: public admin-level-1 dataset (2021), simplified.
-            Central and South Ethiopia regions were created after this dataset and are shown together as the former SNNP area.
-          </p>
         </div>
 
         <div className="space-y-3">
