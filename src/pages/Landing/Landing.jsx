@@ -348,6 +348,7 @@ export default function Landing() {
               <p className="font-medium text-ink mb-3">Company</p>
               <ul className="space-y-2 text-slate-500">
                 <li><Link to="/about" className="hover:text-primary">About Us</Link></li>
+                <li><Link to="/contact" className="hover:text-primary">Contact</Link></li>
               </ul>
             </div>
             <div>
