@@ -17,6 +17,7 @@ import partnerEthioTelecom from '../../assets/partner-ethiotelecom.jpg'
 import partnerGebeya from '../../assets/partner-gebeya.png'
 import partnerClaude from '../../assets/partner-claude.png'
 import partnerCursor from '../../assets/partner-cursor.png'
+import partnerKorea from '../../assets/partner-korea.png'
 
 const partnerLogos = [
   { name: 'Visa', src: partnerVisa, url: 'https://www.visa.com' },
@@ -24,6 +25,7 @@ const partnerLogos = [
   { name: 'Gebeya', src: partnerGebeya, url: 'https://gebeya.com' },
   { name: 'Claude', src: partnerClaude, url: 'https://claude.ai' },
   { name: 'Cursor AI', src: partnerCursor, url: 'https://cursor.com' },
+  { name: 'Embassy of the Republic of Korea in Ethiopia', src: partnerKorea, url: 'https://eth.mofa.go.kr/et-en/index.do' },
 ]
 
 const navLinks = [
