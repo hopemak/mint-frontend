@@ -22,6 +22,8 @@ import Analytics from './pages/Analytics/Analytics.jsx'
 import Recommendations from './pages/Recommendations/Recommendations.jsx'
 import Mentors from './pages/Recommendations/Mentors.jsx'
 import Admin from './pages/Admin/Admin.jsx'
+import ShareStory from './pages/Testimonials/ShareStory.jsx'
+import AdminTestimonials from './pages/Testimonials/AdminTestimonials.jsx'
 import Chatbot from './pages/Chatbot/Chatbot.jsx'
 import Funding from './pages/Funding/Funding.jsx'
 import Restricted from './pages/Restricted/Restricted.jsx'
@@ -58,6 +60,7 @@ export default function App() {
             <Route path="/evaluate" element={<Evaluation />} />
             <Route path="/recommendations" element={<Recommendations />} />
             <Route path="/chatbot" element={<Chatbot />} />
+            <Route path="/share-story" element={<ShareStory />} />
           </Route>
 
 
@@ -75,6 +78,7 @@ export default function App() {
 
           <Route element={<RoleRoute allow={['admin']} />}>
             <Route path="/admin" element={<Admin />} />
+            <Route path="/admin/testimonials" element={<AdminTestimonials />} />
           </Route>
         </Route>
         <Route path="*" element={<Landing />} />

@@ -294,3 +294,10 @@ export default api
 export const systemAPI = {
   listRoutes: () => api.get('/api/system/routes'),
 }
+
+export const testimonialAPI = {
+  submit: (data) => api.post('/api/public/testimonials', data),
+  adminList: () => api.get('/api/public/testimonials/admin'),
+  approve: (id) => api.put(`/api/public/testimonials/${id}/approve`),
+  reject: (id) => api.put(`/api/public/testimonials/${id}/reject`),
+}
