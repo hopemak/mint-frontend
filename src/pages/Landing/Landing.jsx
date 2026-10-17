@@ -119,6 +119,13 @@ const featured = [
 
 export default function Landing() {
   const [live, setLive] = useState(null)
+  const [liveStartups, setLiveStartups] = useState([])
+  useEffect(() => {
+    api.get('/api/public/featured-startups')
+      .then((r) => setLiveStartups(r.data.startups || []))
+      .catch(() => setLiveStartups([]))
+  }, [])
+  const featuredLive = liveStartups.map((x, i) => ({ ...x, color: featured[i % featured.length].color }))
   useEffect(() => {
     api.get('/api/public/stats').then((r) => setLive(r.data)).catch(() => setLive({}))
   }, [])
@@ -274,15 +281,15 @@ export default function Landing() {
             <p className="text-slate-300 mt-2">Showcasing prominent startups in the program.</p>
           </div>
           <div className="grid md:grid-cols-3 gap-5">
-            {featured.map((s) => (
-              <div key={s.name} className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
+            {featuredLive.map((s) => (
+              <div key={s.id} className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
                 <div className={`h-1.5 ${s.color}`} />
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div className={`h-11 w-11 rounded-lg ${s.color} flex items-center justify-center font-heading font-bold`}>
                       {s.name.slice(0, 2).toUpperCase()}
                     </div>
-                    <span className="text-xs font-medium text-accent-400">★ {s.rating}</span>
+                    <span className="text-xs font-medium text-accent-400">TRL {s.trl}</span>
                   </div>
                   <h3 className="font-heading font-semibold mb-1">{s.name}</h3>
                   <p className="text-sm text-slate-300 mb-4">{s.sector}</p>
