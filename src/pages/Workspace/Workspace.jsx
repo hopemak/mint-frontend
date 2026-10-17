@@ -8,7 +8,8 @@ import {
   EnvelopeIcon,
 } from '@heroicons/react/24/outline'
 import { PageHeader, LoadingBlock, EmptyState } from '../../components/ui.jsx'
-import { startupAPI, taskAPI, documentAPI, mentorAPI } from '../../services/api.js'
+import { startupAPI, taskAPI, documentAPI, mentorAPI, sessionAPI } from '../../services/api.js'
+import WorkspaceExtras from './WorkspaceExtras.jsx'
 
 const COLUMNS = [
   { key: 'todo', label: 'To Do', bar: 'bg-slate-400' },
@@ -266,6 +267,15 @@ export default function Workspace() {
     }
   }
 
+  const requestSession = async (m) => {
+    try {
+      await sessionAPI.request(m.mentor_id || m.id || m._id)
+      toast.success('Session requested')
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Could not request a session')
+    }
+  }
+
   if (loadingProjects) return <div className="p-8"><LoadingBlock /></div>
 
   if (!project) {
@@ -331,6 +341,7 @@ export default function Workspace() {
             </div>
           </div>
 
+          <WorkspaceExtras project={project} />
           <div className="grid lg:grid-cols-3 gap-5">
             <div className="card p-5 lg:col-span-2">
               <div className="flex items-center justify-between mb-3">
@@ -505,6 +516,7 @@ export default function Workspace() {
                         <span key={a} className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-primary-700 text-slate-600 dark:text-slate-300">{a}</span>
                       ))}
                     </div>
+                    <button onClick={() => requestSession(m)} className="btn btn-primary text-xs px-3 py-1.5 mb-2">Request a session</button>
                     {m.email && (
                       <a href={`mailto:${m.email}`} className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
                         <EnvelopeIcon className="h-4 w-4" /> Contact by email
