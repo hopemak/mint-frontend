@@ -1,4 +1,5 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
+import api from '../../services/api'
 import { Link } from 'react-router-dom'
 import {
   ChartBarSquareIcon,
@@ -34,6 +35,15 @@ const navLinks = [
   { label: 'Funding', to: '/#funding' },
   { label: 'Contact', to: '/#contact' },
 ]
+
+
+const fmtCount = (n) => (n == null ? '…' : Number(n).toLocaleString())
+const fmtMoney = (n) => {
+  if (n == null) return '…'
+  if (n >= 1e6) return '$' + (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M'
+  if (n >= 1e3) return '$' + (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K'
+  return '$' + Math.round(n)
+}
 
 const stats = [
   { value: '150+', label: 'Startups Incubated' },
@@ -108,6 +118,15 @@ const featured = [
 ]
 
 export default function Landing() {
+  const [live, setLive] = useState(null)
+  useEffect(() => {
+    api.get('/api/public/stats').then((r) => setLive(r.data)).catch(() => setLive({}))
+  }, [])
+  const liveStats = [
+    { value: fmtCount(live ? live.startups ?? 0 : null), label: 'Startups Incubated' },
+    { value: fmtMoney(live ? live.funding_raised ?? 0 : null), label: 'Total Funding Raised' },
+    { value: fmtCount(live ? live.mentors ?? 0 : null), label: 'Active Mentors' },
+  ]
   return (
     <div className="bg-white text-ink font-sans">
       {/* Nav */}
@@ -158,7 +177,7 @@ export default function Landing() {
       {/* Stats */}
       <section id="programs" className="max-w-7xl mx-auto px-6 pb-16">
         <div className="grid sm:grid-cols-3 gap-5">
-          {stats.map((s) => (
+          {liveStats.map((s) => (
             <div key={s.label} className="card p-8 text-center">
               <p className="font-heading text-3xl sm:text-4xl font-bold bg-gradient-to-r from-primary to-accent-500 bg-clip-text text-transparent">
                 {s.value}
