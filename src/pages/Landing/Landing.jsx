@@ -19,11 +19,11 @@ import partnerClaude from '../../assets/partner-claude.png'
 import partnerCursor from '../../assets/partner-cursor.png'
 
 const partnerLogos = [
-  { name: 'Visa', src: partnerVisa },
-  { name: 'ethio telecom', src: partnerEthioTelecom },
-  { name: 'Gebeya', src: partnerGebeya },
-  { name: 'Claude', src: partnerClaude },
-  { name: 'Cursor AI', src: partnerCursor },
+  { name: 'Visa', src: partnerVisa, url: 'https://www.visa.com' },
+  { name: 'ethio telecom', src: partnerEthioTelecom, url: 'https://www.ethiotelecom.et' },
+  { name: 'Gebeya', src: partnerGebeya, url: 'https://gebeya.com' },
+  { name: 'Claude', src: partnerClaude, url: 'https://claude.ai' },
+  { name: 'Cursor AI', src: partnerCursor, url: 'https://cursor.com' },
 ]
 
 const navLinks = [
@@ -213,12 +213,20 @@ export default function Landing() {
             </button>
             <div className="flex flex-wrap items-center justify-center gap-x-14 gap-y-8">
               {partnerLogos.map((p) => (
-                <img
+                <a
                   key={p.name}
-                  src={p.src}
-                  alt={p.name}
-                  className="h-9 sm:h-10 w-auto object-contain grayscale opacity-70 hover:opacity-100 hover:grayscale-0 transition"
-                />
+                  href={p.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={p.name}
+                  className="shrink-0"
+                >
+                  <img
+                    src={p.src}
+                    alt={p.name}
+                    className="h-9 sm:h-10 w-auto object-contain grayscale opacity-70 hover:opacity-100 hover:grayscale-0 transition"
+                  />
+                </a>
               ))}
             </div>
             <button className="p-1.5 rounded-full border border-slate-200 text-slate-400 hover:text-primary hover:border-primary transition shrink-0">
