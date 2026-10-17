@@ -69,3 +69,7 @@ html, body { overflow-x: hidden; }
     font-size: 0.875rem !important;
   }
 }
+
+/* Smooth anchor scrolling under sticky header */
+html { scroll-behavior: smooth; }
+section[id], footer[id] { scroll-margin-top: 80px; }

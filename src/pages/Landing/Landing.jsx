@@ -156,7 +156,7 @@ export default function Landing() {
       </section>
 
       {/* Stats */}
-      <section className="max-w-7xl mx-auto px-6 pb-16">
+      <section id="programs" className="max-w-7xl mx-auto px-6 pb-16">
         <div className="grid sm:grid-cols-3 gap-5">
           {stats.map((s) => (
             <div key={s.label} className="card p-8 text-center">
@@ -218,7 +218,7 @@ export default function Landing() {
       </section>
 
       {/* Success stories */}
-      <section className="py-20 max-w-7xl mx-auto px-6">
+      <section id="mentors" className="py-20 max-w-7xl mx-auto px-6">
         <div className="text-center max-w-2xl mx-auto mb-12">
           <h2 className="font-heading text-3xl font-semibold text-primary-800">Success Stories</h2>
           <p className="text-slate-500 mt-2">Testimonials from successful startups.</p>
@@ -284,7 +284,7 @@ export default function Landing() {
       </section>
 
       {/* AI Features */}
-      <section className="py-20 max-w-7xl mx-auto px-6">
+      <section id="funding" className="py-20 max-w-7xl mx-auto px-6">
         <div className="text-center max-w-2xl mx-auto mb-12">
           <h2 className="font-heading text-3xl font-semibold text-primary-800">AI Features</h2>
           <p className="text-slate-500 mt-2">Unique standout capabilities of the platform.</p>
@@ -303,7 +303,7 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-slate-100 py-12">
+      <footer id="contact" className="border-t border-slate-100 py-12">
         <div className="max-w-7xl mx-auto px-6 flex flex-wrap items-start justify-between gap-8 text-sm mb-10">
           <div className="grid sm:grid-cols-4 gap-8 flex-1">
             <div>
