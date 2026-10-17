@@ -13,6 +13,7 @@ import {
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useTheme } from '../../context/ThemeContext.jsx'
 import authHero from '../../assets/auth-hero.png'
+import GoogleSignInButton from '../../components/GoogleSignInButton.jsx'
 
 export default function Login() {
   const {
@@ -282,43 +283,7 @@ export default function Login() {
                   : 'Continue'}
             </button>
 
-            {!otpStep && (
-              <>
-                <div className="relative py-2 text-center">
-                  <span className="bg-white dark:bg-primary-900 px-3 text-xs text-slate-400 relative z-10">
-                    Other Login Methods
-                  </span>
-                  <div className="absolute left-0 right-0 top-1/2 border-t border-slate-100 dark:border-primary-700" />
-                </div>
-
-                <button
-                  type="button"
-                  className="btn-outline w-full py-3"
-                >
-                  <FingerPrintIcon className="h-5 w-5" />
-                  Biometric Login
-                </button>
-
-                <div className="relative py-2 text-center">
-                  <span className="bg-white dark:bg-primary-900 px-3 text-xs text-slate-400 relative z-10">
-                    Social Login
-                  </span>
-                  <div className="absolute left-0 right-0 top-1/2 border-t border-slate-100 dark:border-primary-700" />
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  {['Google', 'Apple', 'Microsoft'].map((provider) => (
-                    <button
-                      key={provider}
-                      type="button"
-                      className="btn-outline text-xs py-2.5"
-                    >
-                      {provider}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
+            {!otpStep && <GoogleSignInButton />}
           </form>
         </div>
       </div>

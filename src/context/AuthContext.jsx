@@ -214,6 +214,25 @@ export function AuthProvider({ children }) {
     }
   }
 
+  const loginWithGoogle = async (credential) => {
+    try {
+      const response = await api.post('/api/auth/google', { credential })
+      const result = response.data
+      const userData = result.data?.user || result.user
+      const token = result.data?.token || result.token
+      if (!userData || !token) return { ok: false, error: 'Invalid server response' }
+      setUser(userData)
+      localStorage.setItem('mint_user', JSON.stringify(userData))
+      localStorage.setItem('mint_token', token)
+      return { ok: true }
+    } catch (err) {
+      if (err.response) {
+        return { ok: false, error: err.response.data?.error || 'Google sign-in failed' }
+      }
+      return { ok: false, error: 'Unable to connect to the backend' }
+    }
+  }
+
   const logout = () => {
     setUser(null)
     localStorage.removeItem('mint_user')
@@ -231,6 +250,7 @@ export function AuthProvider({ children }) {
         register,
         verifyRegistrationOtp,
         resendRegistrationOtp,
+        loginWithGoogle,
         logout
       }}
     >
