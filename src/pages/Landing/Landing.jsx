@@ -258,7 +258,7 @@ export default function Landing() {
         </div>
         <div className="grid md:grid-cols-3 gap-6">
           {liveTestimonials.map((t) => (
-            <div key={t.name} className="card p-6">
+            <div key={t.id} className="card p-6">
               <p className="text-sm text-slate-600 leading-relaxed mb-5">&ldquo;{t.quote}&rdquo;</p>
               <div className="flex items-center gap-3 mb-3">
                 <div className="h-9 w-9 rounded-full bg-primary text-white flex items-center justify-center text-sm font-semibold">
