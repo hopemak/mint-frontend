@@ -8,7 +8,7 @@ import {
   EnvelopeIcon,
 } from '@heroicons/react/24/outline'
 import { PageHeader, LoadingBlock, EmptyState } from '../../components/ui.jsx'
-import { startupAPI, taskAPI, documentAPI, mentorAPI, sessionAPI } from '../../services/api.js'
+import { startupAPI, taskAPI, documentAPI, mentorAPI, sessionAPI, milestoneAPI } from '../../services/api.js'
 import WorkspaceExtras from './WorkspaceExtras.jsx'
 
 const COLUMNS = [
@@ -76,7 +76,7 @@ export default function Workspace() {
   const [tasks, setTasks] = useState([])
   const [tasksLoading, setTasksLoading] = useState(false)
   const [showTaskForm, setShowTaskForm] = useState(false)
-  const [taskForm, setTaskForm] = useState({ title: '', description: '', priority: 'Medium', column: 'todo' })
+  const [taskForm, setTaskForm] = useState({ title: '', description: '', priority: 'Medium', column: 'todo', due_date: '' })
 
   const [docs, setDocs] = useState([])
   const [docsLoading, setDocsLoading] = useState(false)
@@ -114,11 +114,9 @@ export default function Workspace() {
       })
       .catch(() => toast.error('Could not load tasks'))
       .finally(() => setTasksLoading(false))
-    try {
-      setMilestones(JSON.parse(localStorage.getItem('milestones_' + pid) || '[]'))
-    } catch {
-      setMilestones([])
-    }
+    milestoneAPI.list(pid)
+      .then((res) => setMilestones(res.data?.milestones || []))
+      .catch(() => setMilestones([]))
   }, [pid])
 
   // Files + mentors
@@ -192,9 +190,10 @@ export default function Workspace() {
         status: taskForm.column,
         startup_id: pid,
         story_points: 0,
+        due_date: taskForm.due_date || null,
       })
       toast.success('Task created')
-      setTaskForm({ title: '', description: '', priority: 'Medium', column: 'todo' })
+      setTaskForm({ title: '', description: '', priority: 'Medium', column: 'todo', due_date: '' })
       setShowTaskForm(false)
       await reloadTasks()
     } catch (err) {
@@ -225,17 +224,29 @@ export default function Workspace() {
     }
   }
 
-  const saveMilestones = (list) => {
-    setMilestones(list)
-    localStorage.setItem('milestones_' + pid, JSON.stringify(list))
-  }
-
-  const addMilestone = (e) => {
+  const addMilestone = async (e) => {
     e.preventDefault()
     if (!msForm.title.trim() || !msForm.date) return
-    saveMilestones([...milestones, { title: msForm.title.trim(), date: msForm.date, completed: false }])
-    setMsForm({ title: '', date: '' })
-    setShowMs(false)
+    try {
+      const res = await milestoneAPI.create({ startup_id: pid, title: msForm.title.trim(), date: msForm.date })
+      setMilestones((prev) => [...prev, res.data.milestone])
+      setMsForm({ title: '', date: '' })
+      setShowMs(false)
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Could not save milestone')
+    }
+  }
+
+  const toggleMs = async (m) => {
+    setMilestones((prev) => prev.map((x) => (x.id === m.id ? { ...x, completed: !x.completed } : x)))
+    try { await milestoneAPI.setDone(m.id, !m.completed) } catch { toast.error('Could not update milestone') }
+  }
+
+  const deleteMs = async (m) => {
+    try {
+      await milestoneAPI.remove(m.id)
+      setMilestones((prev) => prev.filter((x) => x.id !== m.id))
+    } catch { toast.error('Could not delete milestone') }
   }
 
   const upload = async (e) => {
@@ -276,6 +287,39 @@ export default function Workspace() {
     }
   }
 
+  const downloadReport = async () => {
+    const { jsPDF } = await import('jspdf')
+    const doc = new jsPDF()
+    let y = 20
+    const line = (text, size = 11, bold = false) => {
+      doc.setFontSize(size)
+      doc.setFont('helvetica', bold ? 'bold' : 'normal')
+      doc.splitTextToSize(String(text), 175).forEach((l) => {
+        if (y > 280) { doc.addPage(); y = 20 }
+        doc.text(l, 15, y)
+        y += size * 0.5 + 2
+      })
+    }
+    line('MInT - Startup Progress Report', 16, true)
+    line('Generated ' + new Date().toLocaleDateString())
+    y += 4
+    line(project.business_name || project.name || 'Startup', 14, true)
+    line(['Sector: ' + (project.sector || '-'), 'Region: ' + (project.region || '-'), 'Status: ' + (project.status || 'submitted')].join('   '))
+    line('Technology Readiness Level: ' + (trl ? trl + ' of 9' : 'not set'))
+    y += 4
+    line('Tasks', 13, true)
+    line(`${stats.total} total, ${stats.done} completed, ${stats.doing} in progress (${stats.percent}% complete)`)
+    y += 4
+    line('Milestones', 13, true)
+    if (milestones.length === 0) line('None recorded.')
+    milestones.forEach((m) => line('[' + (m.completed ? 'x' : ' ') + '] ' + m.title + ' - ' + fmtDate(m.date)))
+    y += 4
+    line('Next steps', 13, true)
+    if (nextSteps.length === 0) line('None.')
+    nextSteps.forEach((n) => line('- ' + n))
+    doc.save('progress-report.pdf')
+  }
+
   if (loadingProjects) return <div className="p-8"><LoadingBlock /></div>
 
   if (!project) {
@@ -300,6 +344,7 @@ export default function Workspace() {
             <span className="px-2 py-0.5 rounded-full bg-white/10 capitalize">{project.status || 'submitted'}</span>
           </div>
         </div>
+        <button onClick={downloadReport} className="px-4 py-2 rounded-lg bg-white text-ink text-sm font-medium hover:bg-slate-100">Download report (PDF)</button>
         {projects.length > 1 && (
           <select
             className="input text-sm text-ink max-w-xs"
@@ -392,7 +437,7 @@ export default function Workspace() {
                 <div className="space-y-2">
                   {[...milestones].map((m, i) => (
                     <div key={i} className="flex items-start gap-2 group">
-                      <button onClick={() => saveMilestones(milestones.map((x, j) => (j === i ? { ...x, completed: !x.completed } : x)))} className="mt-0.5 shrink-0">
+                      <button onClick={() => toggleMs(m)} className="mt-0.5 shrink-0">
                         {m.completed
                           ? <CheckCircleIcon className="h-5 w-5 text-emerald-500" />
                           : <span className="block h-5 w-5 rounded-full border-2 border-amber-400" />}
@@ -401,14 +446,14 @@ export default function Workspace() {
                         <p className={`text-sm ${m.completed ? 'line-through text-slate-400' : ''}`}>{m.title}</p>
                         <p className="text-xs text-slate-400">{fmtDate(m.date)}</p>
                       </div>
-                      <button onClick={() => saveMilestones(milestones.filter((_, j) => j !== i))} className="sm:opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400">
+                      <button onClick={() => deleteMs(m)} className="sm:opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400">
                         <TrashIcon className="h-4 w-4" />
                       </button>
                     </div>
                   ))}
                 </div>
               )}
-              <p className="text-[11px] text-slate-400 mt-3">Milestones are saved in this browser only.</p>
+              <p className="text-[11px] text-slate-400 mt-3">Milestones are saved to your account.</p>
             </div>
           </div>
         </div>
@@ -434,7 +479,8 @@ export default function Workspace() {
               <select className="input text-sm" value={taskForm.column} onChange={(e) => setTaskForm({ ...taskForm, column: e.target.value })}>
                 {COLUMNS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
               </select>
-              <input placeholder="Description (optional)" className="input text-sm sm:col-span-3" value={taskForm.description} onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })} />
+              <input placeholder="Description (optional)" className="input text-sm sm:col-span-2" value={taskForm.description} onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })} />
+              <input type="date" title="Due date" className="input text-sm" value={taskForm.due_date} onChange={(e) => setTaskForm({ ...taskForm, due_date: e.target.value })} />
               <div className="flex gap-2">
                 <button type="button" onClick={() => setShowTaskForm(false)} className="btn btn-outline text-sm flex-1">Cancel</button>
                 <button type="submit" className="btn btn-primary text-sm flex-1">Create</button>
@@ -465,6 +511,10 @@ export default function Workspace() {
                               </button>
                             </div>
                             {task.description && <p className="text-xs text-slate-400 mt-1 line-clamp-2">{task.description}</p>}
+                            {task.due_date && (() => {
+                              const late = col.key !== 'done' && new Date(task.due_date) < new Date(new Date().toDateString())
+                              return <p className={`text-[11px] mt-1 ${late ? 'text-red-600 font-medium' : 'text-slate-400'}`}>{late ? 'Overdue - ' : 'Due '}{fmtDate(task.due_date)}</p>
+                            })()}
                             <div className="flex items-center justify-between mt-3">
                               <span className={`text-[10px] px-1.5 py-0.5 rounded capitalize ${PRIORITY[pr] || PRIORITY.medium}`}>{pr}</span>
                               <div className="flex gap-1">

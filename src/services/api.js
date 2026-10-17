@@ -301,3 +301,10 @@ export const testimonialAPI = {
   approve: (id) => api.put(`/api/public/testimonials/${id}/approve`),
   reject: (id) => api.put(`/api/public/testimonials/${id}/reject`),
 }
+
+export const milestoneAPI = {
+  list: (startupId) => api.get('/api/milestones', { params: { startup_id: startupId } }),
+  create: (data) => api.post('/api/milestones', data),
+  setDone: (id, completed) => api.put(`/api/milestones/${id}`, { completed }),
+  remove: (id) => api.delete(`/api/milestones/${id}`),
+}
