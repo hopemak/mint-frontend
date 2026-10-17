@@ -14,6 +14,9 @@ import {
   LightBulbIcon,
   AcademicCapIcon,
   CalendarDaysIcon,
+  Squares2X2Icon,
+  KeyIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline'
 import { PageHeader, LoadingBlock } from '../../components/ui.jsx'
 import {
@@ -404,6 +407,8 @@ export default function Admin() {
     loadCodesAndRequests()
   }, [])
 
+  const [tab, setTab] = useState('overview')
+
   const filteredUsers = users.filter((u) =>
     (u.full_name || u.name || '').toLowerCase().includes(userQuery.toLowerCase()) ||
     (u.email || '').toLowerCase().includes(userQuery.toLowerCase())
@@ -413,569 +418,153 @@ export default function Admin() {
 
   if (loading) return <div className="p-5"><LoadingBlock /></div>
 
+  const pendingRequests = requests.filter((r) => r.status === 'pending')
+  const pendingFunding = fundingRequests.filter((r) => r.status === 'pending')
+  const pendingUsers = users.filter((u) => u.status === 'pending')
+  const pendingIdeas = ideas.filter((i) => i.status !== 'approved' && i.status !== 'rejected')
+  const totalPending = pendingRequests.length + pendingFunding.length + pendingGrants.length + pendingUsers.length + pendingIdeas.length
+
+  const tabs = [
+    { id: 'overview', label: 'Overview', icon: Squares2X2Icon },
+    { id: 'access', label: 'Access Codes', icon: KeyIcon, count: pendingRequests.length },
+    { id: 'users', label: 'Users', icon: UsersIcon, count: pendingUsers.length },
+    { id: 'funding', label: 'Funding', icon: BanknotesIcon, count: pendingGrants.length + pendingFunding.length },
+    { id: 'ideas', label: 'Ideas', icon: LightBulbIcon, count: pendingIdeas.length },
+    { id: 'community', label: 'Mentors & Events', icon: AcademicCapIcon },
+    { id: 'security', label: 'Security', icon: ShieldCheckIcon, count: securityAlerts.length },
+  ]
+  const firstPending = tabs.find((t) => t.id !== 'security' && t.count > 0)
+
+  const stats = [
+    { label: 'Total Users', value: users.length, sub: users.filter((u) => u.status === 'active').length + ' active', icon: UsersIcon, bg: 'from-primary-600 to-primary-400' },
+    { label: 'Ideas Submitted', value: ideas.length, sub: ideas.filter((i) => i.status === 'evaluated').length + ' evaluated', icon: LightBulbIcon, bg: 'from-accent-500 to-accent-300' },
+    { label: 'Grant Programs', value: grants.length, sub: pendingGrants.length + ' pending apps', icon: BanknotesIcon, bg: 'from-emerald-600 to-emerald-400' },
+    { label: 'Mentors', value: mentors.length, sub: 'Industry experts', icon: AcademicCapIcon, bg: 'from-sky-600 to-sky-400' },
+    { label: 'Upcoming Events', value: events.length, sub: 'Scheduled', icon: CalendarDaysIcon, bg: 'from-violet-600 to-violet-400' },
+    { label: 'Awaiting Review', value: totalPending, sub: 'Needs your action', icon: ShieldExclamationIcon, bg: 'from-rose-600 to-rose-400' },
+  ]
+
+  const attention = [
+    { label: 'Access requests', n: pendingRequests.length, to: 'access', icon: KeyIcon },
+    { label: 'Users awaiting approval', n: pendingUsers.length, to: 'users', icon: UsersIcon },
+    { label: 'Grant applications', n: pendingGrants.length, to: 'funding', icon: BanknotesIcon },
+    { label: 'Funding requests', n: pendingFunding.length, to: 'funding', icon: BanknotesIcon },
+    { label: 'Ideas to review', n: pendingIdeas.length, to: 'ideas', icon: LightBulbIcon },
+  ].filter((x) => x.n > 0)
+
+  const quick = [
+    { label: 'Generate Codes', hint: 'Institution access codes', icon: KeyIcon, run: () => { setTab('access'); setShowCreateCode(true) } },
+    { label: 'Create Grant', hint: 'Launch a funding program', icon: BanknotesIcon, run: () => { setTab('funding'); setShowCreateGrant(true) } },
+    { label: 'Add Mentor', hint: 'Onboard an expert', icon: AcademicCapIcon, run: () => { setTab('community'); setShowCreateMentor(true) } },
+    { label: 'Schedule Event', hint: 'Workshop or demo day', icon: CalendarDaysIcon, run: () => { setTab('community'); setShowCreateEvent(true) } },
+  ]
+
+  const approveBtn = 'inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-xs font-medium'
+  const rejectBtn = 'inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 text-xs font-medium'
+  const chip = 'text-xs bg-slate-100 dark:bg-primary-700 text-slate-500 dark:text-slate-300 px-2 py-0.5 rounded-full'
+
   return (
-    <div className="space-y-16 pb-20">
-      <PageHeader eyebrow="Administration" title="Admin Control Center" />
-
-      {/* --- PLATFORM OVERVIEW --- */}
-      <section>
-        <h2 className="font-heading text-3xl font-bold text-ink dark:text-white mb-6 border-b border-slate-100 dark:border-primary-700 pb-3">
-          Platform Overview
-        </h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="card p-4">
-            <p className="text-3xl font-bold text-primary">{users.length}</p>
-            <p className="text-sm text-slate-500">Total Users</p>
-            <div className="mt-2 flex gap-2 text-xs">
-              <span className="text-emerald-600">{users.filter((u) => u.status === 'active').length} Active</span>
-              <span className="text-amber-600">{users.filter((u) => u.status === 'pending').length} Pending</span>
-            </div>
+    <div className="space-y-6 pb-20">
+      {/* HERO */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary-800 via-primary-600 to-primary-500 p-6 sm:p-8 text-white shadow-soft">
+        <div className="absolute -right-12 -top-12 h-52 w-52 rounded-full bg-accent/25 blur-2xl" />
+        <div className="absolute -bottom-16 left-1/3 h-44 w-44 rounded-full bg-white/10 blur-2xl" />
+        <div className="relative flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-accent-200">Administration</p>
+            <h1 className="font-heading text-2xl sm:text-3xl font-semibold mt-1">Admin Control Center</h1>
+            <p className="text-sm text-primary-100 mt-2 max-w-xl">
+              {totalPending > 0 ? totalPending + ' item(s) are waiting for your review.' : 'Everything is up to date. Nothing is waiting for review.'}
+            </p>
           </div>
-          <div className="card p-4">
-            <p className="text-3xl font-bold text-primary">{ideas.length}</p>
-            <p className="text-sm text-slate-500">Ideas Submitted</p>
-            <div className="mt-2 flex gap-2 text-xs">
-              <span className="text-primary">{ideas.filter((i) => i.status === 'evaluated').length} Evaluated</span>
-              <span className="text-slate-400">{ideas.filter((i) => i.status !== 'evaluated').length} Pending</span>
-            </div>
-          </div>
-          <div className="card p-4">
-            <p className="text-3xl font-bold text-primary">{grants.length}</p>
-            <p className="text-sm text-slate-500">Grant Programs</p>
-            <div className="mt-2 flex gap-2 text-xs">
-              <span className="text-amber-600">{pendingGrants.length} Pending Apps</span>
-            </div>
-          </div>
-          <div className="card p-4">
-            <p className="text-3xl font-bold text-primary">{mentors.length}</p>
-            <p className="text-sm text-slate-500">Active Mentors</p>
-            <div className="mt-2 flex gap-2 text-xs">
-              <span className="text-emerald-600">{events.length} Upcoming Events</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid sm:grid-cols-3 gap-3 mt-6">
-          <button onClick={() => document.getElementById('grants-section').scrollIntoView({ behavior: 'smooth' })} className="card p-4 text-left hover:border-primary transition-colors">
-            <BanknotesIcon className="h-6 w-6 text-primary mb-2" />
-            <p className="font-medium text-ink dark:text-white">Create Grant</p>
-            <p className="text-xs text-slate-500">Launch a new funding program</p>
-          </button>
-          <button onClick={() => document.getElementById('mentors-section').scrollIntoView({ behavior: 'smooth' })} className="card p-4 text-left hover:border-primary transition-colors">
-            <AcademicCapIcon className="h-6 w-6 text-primary mb-2" />
-            <p className="font-medium text-ink dark:text-white">Add Mentor</p>
-            <p className="text-xs text-slate-500">Onboard a new industry expert</p>
-          </button>
-          <button onClick={() => document.getElementById('events-section').scrollIntoView({ behavior: 'smooth' })} className="card p-4 text-left hover:border-primary transition-colors">
-            <CalendarDaysIcon className="h-6 w-6 text-primary mb-2" />
-            <p className="font-medium text-ink dark:text-white">Schedule Event</p>
-            <p className="text-xs text-slate-500">Workshop, demo day, or meeting</p>
-          </button>
-        </div>
-      </section>
-
-      {/* --- INSTITUTION CODES --- */}
-      <section>
-        <h2 className="font-heading text-3xl font-bold text-ink dark:text-white mb-6 border-b border-slate-100 dark:border-primary-700 pb-2">
-          Institution Codes
-        </h2>
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm text-slate-500">Generate and manage unique institution IDs for mentor/investor registration.</p>
-          <div className="flex gap-2">
-            <button onClick={() => setShowSendEmail(!showSendEmail)} className="btn btn-outline text-sm flex items-center gap-1">
-              <EnvelopeIcon className="h-4 w-4" /> Send via Email
+          {firstPending && (
+            <button onClick={() => setTab(firstPending.id)} className="btn btn-accent shadow-soft">
+              Review pending items
             </button>
-            <button onClick={() => setShowCreateCode(!showCreateCode)} className="btn btn-primary text-sm flex items-center gap-1">
-              <PlusIcon className="h-4 w-4" /> Generate Codes
-            </button>
-          </div>
+          )}
         </div>
+      </div>
 
-        {showSendEmail && (
-          <form onSubmit={handleSendCode} className="card p-4 mb-4 flex gap-3 max-w-lg">
-            <input
-              type="email"
-              placeholder="user@example.com"
-              className="input text-sm flex-1"
-              value={sendEmail}
-              onChange={(e) => setSendEmail(e.target.value)}
-              required
-            />
-            <button type="submit" className="btn btn-primary text-sm">Send Code</button>
-            <button type="button" onClick={() => setShowSendEmail(false)} className="btn btn-outline text-sm">Cancel</button>
-          </form>
-        )}
+      {/* TABS */}
+      <div className="sticky top-0 z-10 -mx-1 px-1 py-2 bg-surface/90 dark:bg-primary-900/90 backdrop-blur">
+        <div className="flex gap-2 overflow-x-auto">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={'shrink-0 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors ' + (tab === t.id ? 'bg-primary text-white shadow-soft' : 'bg-white dark:bg-primary-800 text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-primary-700 hover:border-primary')}
+            >
+              <t.icon className="h-4 w-4" />
+              {t.label}
+              {t.count > 0 && <span className={'rounded-full px-1.5 text-xs font-semibold ' + (tab === t.id ? 'bg-accent text-primary-800' : 'bg-rose-100 text-rose-600')}>{t.count}</span>}
+            </button>
+          ))}
+        </div>
+      </div>
 
-        {showCreateCode && (
-          <form onSubmit={handleCreateCode} className="card p-4 mb-4 grid sm:grid-cols-3 gap-3 max-w-lg">
-            <input
-              placeholder="Prefix (e.g. MINT)"
-              className="input text-sm"
-              value={codeForm.prefix}
-              onChange={(e) => setCodeForm({ ...codeForm, prefix: e.target.value })}
-            />
-            <input
-              type="number"
-              min="1"
-              max="50"
-              placeholder="Count"
-              className="input text-sm"
-              value={codeForm.count}
-              onChange={(e) => setCodeForm({ ...codeForm, count: e.target.value })}
-            />
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setShowCreateCode(false)} className="btn btn-outline text-sm flex-1">Cancel</button>
-              <button type="submit" className="btn btn-primary text-sm flex-1">Generate</button>
-            </div>
-          </form>
-        )}
-
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-          {codes.map((c, idx) => (
-            <div key={c.code || i} className={`card p-3 ${c.used ? 'opacity-60' : ''}`}>
-              <div className="flex items-center justify-between">
-                <p className="font-mono text-sm font-bold text-primary">{c.code}</p>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${c.used ? 'bg-slate-100 text-slate-500' : 'bg-emerald-100 text-emerald-700'}`}>
-                  {c.used ? 'Used' : 'Available'}
+      {/* OVERVIEW */}
+      {tab === 'overview' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            {stats.map((st) => (
+              <div key={st.label} className="card p-5 flex items-center gap-4 hover:shadow-soft transition-shadow">
+                <span className={'h-12 w-12 shrink-0 rounded-xl bg-gradient-to-br text-white flex items-center justify-center ' + st.bg}>
+                  <st.icon className="h-6 w-6" />
                 </span>
-              </div>
-              {c.used && c.used_by && (
-                <p className="text-xs text-slate-400 mt-1">Used by: {c.used_by}</p>
-              )}
-            </div>
-          ))}
-          {codes.length === 0 && <p className="text-sm text-slate-400 col-span-full">No codes generated yet.</p>}
-        </div>
-
-        <h3 className="font-heading text-xl font-bold text-ink dark:text-white mb-4 mt-8">Pending Access Requests</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 dark:border-primary-700 text-left text-slate-500">
-                <th className="pb-2 pr-4">Email</th>
-                <th className="pb-2 pr-4">Role</th>
-                <th className="pb-2 pr-4">Status</th>
-                <th className="pb-2">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {requests.filter(r => r.status === 'pending').map((req, idx) => (
-                <tr key={req.request_id || idx} className="border-b border-slate-100 dark:border-primary-800">
-                  <td className="py-3 pr-4">{req.email}</td>
-                  <td className="py-3 pr-4 capitalize">{req.role}</td>
-                  <td className="py-3 pr-4"><span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Pending</span></td>
-                  <td className="py-3">
-                    <button onClick={() => handleApproveRequest(req)} className="btn btn-primary text-xs">Approve & Generate</button>
-                  </td>
-                </tr>
-              ))}
-              {requests.filter(r => r.status === 'pending').length === 0 && (
-                <tr><td colSpan="4" className="py-4 text-slate-400 text-center">No pending requests</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* --- USER MANAGEMENT --- */}
-      <section>
-        <h2 className="font-heading text-3xl font-bold text-ink dark:text-white mb-6 border-b border-slate-100 dark:border-primary-700 pb-3">
-          User Management
-        </h2>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3"><p className="text-sm text-slate-500">Manage registered users, roles, and account status.</p><button onClick={() => window.location.href="/register"} className="btn btn-primary text-xs flex items-center gap-1"><PlusIcon className="h-3 w-3" /> Add User</button></div>
-          <div className="relative">
-            <MagnifyingGlassIcon className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              value={userQuery}
-              onChange={(e) => setUserQuery(e.target.value)}
-              placeholder="Search users..."
-              className="input pl-9 w-56 text-sm"
-            />
-          </div>
-        </div>
-        <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-slate-500 border-b border-slate-100 dark:border-primary-700 bg-slate-50 dark:bg-primary-800">
-                  <th className="px-5 py-3 font-medium">Name</th>
-                  <th className="px-5 py-3 font-medium">Email</th>
-                  <th className="px-5 py-3 font-medium">Role</th>
-                  <th className="px-5 py-3 font-medium">Status</th>
-                  <th className="px-5 py-3 font-medium text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map((u, ui) => {
-                  const id = u.id || u._id
-                  const isEditing = editingUserId === id
-                  return (
-                    <tr key={id || 'user-' + ui} className="border-b border-slate-50 dark:border-primary-700 last:border-0 hover:bg-slate-50/50 dark:hover:bg-primary-800/50">
-                      <td className="px-5 py-3.5 font-medium text-ink dark:text-white">{u.full_name || u.name}</td>
-                      <td className="px-5 py-3.5 text-slate-500">{u.email}</td>
-                      <td className="px-5 py-3.5">
-                        {isEditing ? (
-                          <select
-                            value={u.role || 'founder'}
-                            onChange={(e) => handleRoleChange(id, e.target.value)}
-                            className="input !py-1 !text-xs"
-                          >
-                            <option value="founder">Founder</option>
-                            <option value="mentor">Mentor</option>
-                            <option value="admin">Admin</option>
-                          </select>
-                        ) : (
-                          <span className={`badge ${roleColor[u.role] || 'bg-slate-100 text-slate-600'}`}>{u.role || 'founder'}</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        {isEditing ? (
-                          <select
-                            value={u.status || 'active'}
-                            onChange={(e) => handleStatusChange(id, e.target.value)}
-                            className="input !py-1 !text-xs"
-                          >
-                            <option value="active">Active</option>
-                            <option value="pending">Pending</option>
-                            <option value="inactive">Inactive</option>
-                          </select>
-                        ) : (
-                          <span className={`badge ${statusColor[u.status] || 'bg-slate-100 text-slate-600'}`}>{u.status || 'active'}</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center justify-end gap-1.5 text-slate-400">
-                          <button
-                            onClick={() => setEditingUserId(isEditing ? null : id)}
-                            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-primary-700"
-                            title={isEditing ? 'Done' : 'Edit'}
-                          >
-                            <PencilSquareIcon className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteUser(id)}
-                            className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-500"
-                            title="Delete"
-                          >
-                            <TrashIcon className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-          {filteredUsers.length === 0 && (
-            <p className="p-5 text-sm text-slate-400 text-center">No users found.</p>
-          )}
-        </div>
-      </section>
-
-      {/* --- GRANTS & FUNDING --- */}
-      <section id="grants-section">
-        <h2 className="font-heading text-3xl font-bold text-ink dark:text-white mb-6 border-b border-slate-100 dark:border-primary-700 pb-3">
-          Grants & Funding
-        </h2>
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm text-slate-500">Create grant programs and review funding applications.</p>
-          <button onClick={() => setShowCreateGrant(!showCreateGrant)} className="btn btn-primary text-sm flex items-center gap-1.5">
-            <PlusIcon className="h-4 w-4" /> New Grant Program
-          </button>
-        </div>
-
-        {showCreateGrant && (
-          <form onSubmit={handleCreateGrant} className="card p-4 mb-4 grid sm:grid-cols-2 lg:grid-cols-6 gap-3">
-            <input required placeholder="Grant name" className="input text-sm" value={grantForm.grant_name} onChange={(e) => setGrantForm({ ...grantForm, grant_name: e.target.value })} />
-            <input required placeholder="Program" className="input text-sm" value={grantForm.program} onChange={(e) => setGrantForm({ ...grantForm, program: e.target.value })} />
-            <input required type="number" placeholder="Max Amount" className="input text-sm" value={grantForm.max_amount} onChange={(e) => setGrantForm({ ...grantForm, max_amount: e.target.value })} />
-            <input type="number" placeholder="Min Amount" className="input text-sm" value={grantForm.min_amount} onChange={(e) => setGrantForm({ ...grantForm, min_amount: e.target.value })} />
-            <input required type="date" className="input text-sm" value={grantForm.deadline} onChange={(e) => setGrantForm({ ...grantForm, deadline: e.target.value })} />
-            <input required placeholder="Sectors (comma separated)" className="input text-sm" value={grantForm.sectors} onChange={(e) => setGrantForm({ ...grantForm, sectors: e.target.value })} />
-            <div className="flex gap-2 sm:col-span-2 lg:col-span-6">
-              <button type="button" onClick={() => setShowCreateGrant(false)} className="btn btn-outline text-sm flex-1">Cancel</button>
-              <button type="submit" className="btn btn-primary text-sm flex-1">Create</button>
-            </div>
-          </form>
-        )}
-
-        <h3 className="font-heading text-lg font-semibold text-ink dark:text-white mb-3">Active Programs</h3>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
-          {grants.map((g, gi) => (
-            <div key={g.id || g._id} className="card p-4">
-              <div className="flex items-start justify-between">
                 <div className="min-w-0">
-                  <p className="font-medium text-ink dark:text-white truncate">{g.grant_name || g.name || 'Unnamed'}</p>
-                  <p className="text-xs text-slate-500">{g.program || g.type || 'General'} - Max: ${(g.max_amount || g.amount || 0).toLocaleString()}</p>
-                  <p className="text-xs text-slate-400 mt-1">Min: ${(g.min_amount || 0).toLocaleString()} - Deadline: {g.deadline || 'TBD'}</p>
+                  <p className="font-heading text-3xl font-semibold text-ink dark:text-white leading-none">{st.value}</p>
+                  <p className="text-sm text-slate-500 mt-1 truncate">{st.label}</p>
+                  <p className="text-xs text-slate-400 truncate">{st.sub}</p>
                 </div>
-                <button onClick={() => handleDeleteGrant(g.grant_id || g.id || g._id)} className="p-1 text-slate-400 hover:text-red-500 shrink-0">
-                  <TrashIcon className="h-4 w-4" />
-                </button>
               </div>
-              <div className="flex flex-wrap gap-1 mt-2">
-                {(g.sectors || g.tags || []).map((t, tIdx) => (
-                  <span key={t + '-' + tIdx} className="text-xs bg-slate-100 dark:bg-primary-700 text-slate-500 px-2 py-0.5 rounded-full">{t}</span>
-                ))}
-              </div>
-            </div>
-          ))}
-          {grants.length === 0 && <p className="text-sm text-slate-400 col-span-full">No grant programs yet.</p>}
-        </div>
+            ))}
+          </div>
 
-        <h3 className="font-heading text-lg font-semibold text-ink dark:text-white mb-3">Pending Applications ({pendingGrants.length})</h3>
-        <div className="space-y-2">
-          {pendingGrants.map((g, pgi) => (
-            <div key={g.id || g._id} className="card p-3 flex items-center justify-between gap-2 text-sm">
-              <div className="min-w-0">
-                <p className="font-medium text-ink dark:text-white truncate">{g.grant_name || g.grant_id || 'Unknown Grant'}</p>
-                <p className="text-xs text-slate-500">${(g.amount_requested || g.amount || 0).toLocaleString()} - {g.applicant_name || g.applicant_email || 'Unknown applicant'}</p>
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <button onClick={() => handleGrantDecision(g.id || g._id, 'approved')} className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-xs font-medium" title="Approve">
-                  <CheckIcon className="h-4 w-4" /> <span>Approve</span>
-                </button>
-                <button onClick={() => handleGrantDecision(g.id || g._id, 'rejected')} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 text-xs font-medium" title="Reject">
-                  <XMarkIcon className="h-4 w-4" /> <span>Reject</span>
-                </button>
-              </div>
-            </div>
-          ))}
-          {pendingGrants.length === 0 && <p className="text-sm text-slate-400">No pending applications.</p>}
-        </div>
-      </section>
-      {/* --- FUNDING REQUESTS --- */}
-      <section id="funding-section">
-        <h2 className="font-heading text-3xl font-bold text-ink dark:text-white mb-6 border-b border-slate-100 dark:border-primary-700 pb-3">
-          Funding Requests
-        </h2>
-        <p className="text-sm text-slate-500 mb-4">Review and decide on founder funding requests.</p>
-        <div className="space-y-2">
-          {fundingRequests.filter((r) => r.status === 'pending').map((r, ri) => (
-            <div key={r.id || r._id} className="card p-3 flex items-center justify-between gap-2 text-sm">
-              <div className="min-w-0">
-                <p className="font-medium text-ink dark:text-white truncate">{r.stage || 'Funding Request'}</p>
-                <p className="text-xs text-slate-500">${(r.amount || 0).toLocaleString()} requested {r.user_id ? `- user: ${r.user_id}` : ''}</p>
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <button onClick={() => handleFundingApprove(r.request_id, r.amount)} className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-xs font-medium" title="Approve">
-                  <CheckIcon className="h-4 w-4" /> <span>Approve</span>
-                </button>
-                <button onClick={() => handleFundingReject(r.request_id)} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 text-xs font-medium" title="Reject">
-                  <XMarkIcon className="h-4 w-4" /> <span>Reject</span>
-                </button>
-              </div>
-            </div>
-          ))}
-          {fundingRequests.filter((r) => r.status === 'pending').length === 0 && (
-            <p className="text-sm text-slate-400">No pending funding requests.</p>
-          )}
-        </div>
-      </section>
-
-      {/* --- IDEAS & STARTUPS --- */}
-      <section>
-        <h2 className="font-heading text-3xl font-bold text-ink dark:text-white mb-6 border-b border-slate-100 dark:border-primary-700 pb-3">
-          Ideas Management
-        </h2>
-        <p className="text-sm text-slate-500 mb-4">Review submitted ideas and run AI evaluations.</p>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {ideas.map((idea, ii) => (
-            <div key={idea.id || idea._id} className="card p-4">
-              <div className="flex items-start justify-between">
-                <div className="min-w-0">
-                  <p className="font-medium text-ink dark:text-white truncate">{idea.title || 'Untitled'}</p>
-                  <p className="text-xs text-slate-500">{idea.industry || idea.sector || 'General'} - Innovation: {idea.innovation_level || 'N/A'}/10</p>
-                </div>
-                <span className={`badge shrink-0 ${statusColor[idea.status?.toLowerCase()] || 'bg-slate-100 text-slate-600'}`}>{idea.status || 'pending'}</span>
-              </div>
-              <p className="text-sm text-slate-500 mt-2 line-clamp-2">{idea.problem || idea.description || 'No description'}</p>
-              <div className="flex gap-2 mt-2">
-                {idea.status !== 'approved' && idea.status !== 'rejected' && (
-                  <button onClick={() => handleApproveIdea(idea.id || idea._id)} className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded hover:bg-emerald-200">Approve</button>
-                )}
-                {idea.status === 'approved' && (
-                  <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded">✓ Approved</span>
-                )}
-                {idea.status !== 'rejected' && idea.status !== 'approved' && (
-                  <button onClick={() => handleRejectIdea(idea.id || idea._id)} className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200">Reject</button>
-                )}
-                {idea.status === 'rejected' && (
-                  <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">✗ Rejected</span>
-                )}
-              </div>
-              <div className="flex gap-2 mt-3">
-                <button
-                  onClick={() => handleEvaluateIdea(idea.id || idea._id)}
-                  className="btn btn-primary text-xs flex-1"
-                  disabled={idea.status === 'evaluated'}
-                >
-                  {idea.status === 'evaluated' ? '✓ Evaluated' : 'Run AI Evaluation'}
-                </button>
-                <button onClick={() => handleDeleteIdea(idea.id || idea._id || idea.idea_id)} className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500">
-                  <TrashIcon className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          ))}
-          {ideas.length === 0 && <p className="text-sm text-slate-400 col-span-full">No ideas submitted yet.</p>}
-        </div>
-      </section>
-
-      {/* --- MENTOR MANAGEMENT --- */}
-      <section id="mentors-section">
-        <h2 className="font-heading text-3xl font-bold text-ink dark:text-white mb-6 border-b border-slate-100 dark:border-primary-700 pb-3">
-          Mentor Management
-        </h2>
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm text-slate-500">Add and manage industry mentors for the incubator.</p>
-          <button onClick={() => setShowCreateMentor(!showCreateMentor)} className="btn btn-primary text-sm flex items-center gap-1.5">
-            <PlusIcon className="h-4 w-4" /> Add Mentor
-          </button>
-        </div>
-
-        {showCreateMentor && (
-          <form onSubmit={handleCreateMentor} className="card p-4 mb-4 grid sm:grid-cols-2 lg:grid-cols-6 gap-3">
-            <input required placeholder="Full name" className="input text-sm" value={mentorForm.full_name} onChange={(e) => setMentorForm({ ...mentorForm, full_name: e.target.value })} />
-            <input required type="number" placeholder="Years of experience" className="input text-sm" value={mentorForm.years_experience} onChange={(e) => setMentorForm({ ...mentorForm, years_experience: e.target.value })} />
-            <input required placeholder="Expertise areas (comma separated)" className="input text-sm sm:col-span-2" value={mentorForm.expertise_areas} onChange={(e) => setMentorForm({ ...mentorForm, expertise_areas: e.target.value })} />
-            <input placeholder="Email" className="input text-sm" value={mentorForm.email} onChange={(e) => setMentorForm({ ...mentorForm, email: e.target.value })} />
-            <input placeholder="Bio (optional)" className="input text-sm sm:col-span-2 lg:col-span-6" value={mentorForm.bio} onChange={(e) => setMentorForm({ ...mentorForm, bio: e.target.value })} />
-            <div className="flex gap-2 sm:col-span-2 lg:col-span-6">
-              <button type="button" onClick={() => setShowCreateMentor(false)} className="btn btn-outline text-sm flex-1">Cancel</button>
-              <button type="submit" className="btn btn-primary text-sm flex-1">Create</button>
-            </div>
-          </form>
-        )}
-
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {mentors.map((m, mi) => (
-            <div key={m.id || m._id} className="card p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="font-medium text-ink dark:text-white">{m.full_name || m.name || 'Unnamed'}</p>
-                  <p className="text-xs text-slate-500">{m.bio || m.title || 'Mentor'}</p>
-                </div>
-                <button onClick={() => handleDeleteMentor(m.mentor_id || m.id || m._id)} className="p-1 text-slate-400 hover:text-red-500">
-                  <TrashIcon className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="flex items-center gap-3 mt-2 text-sm text-slate-500">
-                <span>{m.years_experience || m.years || 0} years</span>
-                <span className="text-amber-500">★ {m.rating || 'N/A'}</span>
-                <span>{m.email || 'N/A'}</span>
-              </div>
-              {m.expertise && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {m.expertise.split(',').map((ex, exIdx) => (
-                    <span key={ex} className="text-xs bg-slate-100 dark:bg-primary-700 text-slate-500 px-2 py-0.5 rounded-full">{ex.trim()}</span>
+          <div className="grid lg:grid-cols-2 gap-4">
+            <div className="card p-5">
+              <SectionHead title="Needs your attention" subtitle="Open items, most urgent first" />
+              {attention.length === 0 ? (
+                <Empty text="All caught up. Nothing to review." />
+              ) : (
+                <div className="space-y-2">
+                  {attention.map((x) => (
+                    <button key={x.label} onClick={() => setTab(x.to)} className="w-full flex items-center justify-between gap-3 rounded-xl border border-slate-100 dark:border-primary-700 px-4 py-3 text-left hover:border-primary transition-colors">
+                      <span className="flex items-center gap-3 text-sm font-medium text-ink dark:text-white">
+                        <x.icon className="h-5 w-5 text-primary" /> {x.label}
+                      </span>
+                      <span className="rounded-full bg-amber-100 text-amber-700 text-xs font-semibold px-2.5 py-0.5">{x.n}</span>
+                    </button>
                   ))}
                 </div>
               )}
             </div>
-          ))}
-          {mentors.length === 0 && <p className="text-sm text-slate-400 col-span-full">No mentors added yet.</p>}
-        </div>
-      </section>
 
-      {/* --- EVENT MANAGEMENT --- */}
-      <section id="events-section">
-        <h2 className="font-heading text-3xl font-bold text-ink dark:text-white mb-6 border-b border-slate-100 dark:border-primary-700 pb-3">
-          Event Management
-        </h2>
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm text-slate-500">Schedule workshops, demo days, and meetings.</p>
-          <button onClick={() => setShowCreateEvent(!showCreateEvent)} className="btn btn-primary text-sm flex items-center gap-1.5">
-            <PlusIcon className="h-4 w-4" /> Schedule Event
-          </button>
-        </div>
-
-        {showCreateEvent && (
-          <form onSubmit={handleCreateEvent} className="card p-4 mb-4 grid sm:grid-cols-2 lg:grid-cols-6 gap-3">
-            <input required placeholder="Event title" className="input text-sm" value={eventForm.title} onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })} />
-            <input
-              required
-              type="date"
-              className="input text-sm"
-              onChange={(e) => {
-                const [y, m, d] = e.target.value.split('-')
-                setEventForm({ ...eventForm, year: y, month: String(Number(m)), day: String(Number(d)) })
-              }}
-            />
-            <input required placeholder="Location" className="input text-sm" value={eventForm.location} onChange={(e) => setEventForm({ ...eventForm, location: e.target.value })} />
-            <input required type="time" placeholder="Time" className="input text-sm" value={eventForm.time} onChange={(e) => setEventForm({ ...eventForm, time: e.target.value })} />
-            <div className="flex gap-2 sm:col-span-2 lg:col-span-6">
-              <button type="button" onClick={() => setShowCreateEvent(false)} className="btn btn-outline text-sm flex-1">Cancel</button>
-              <button type="submit" className="btn btn-primary text-sm flex-1">Create</button>
-            </div>
-          </form>
-        )}
-
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {events.map((ev, evIdx) => (
-            <div key={ev.id || ev._id || 'event-' + evIdx} className="card p-4">
-              <div className={`h-14 w-full rounded-lg flex items-center justify-center mb-3 ${ev.type === 'Workshop' ? 'bg-primary-700' : ev.type === 'Meeting' ? 'bg-primary-400' : ev.type === 'Demo Day' ? 'bg-accent-500' : 'bg-primary'}`}>
-                <CalendarDaysIcon className="h-7 w-7 text-white/90" />
-              </div>
-              <div className="flex items-start justify-between">
-                <div className="min-w-0">
-                  <p className="font-medium text-ink dark:text-white truncate">{ev.title || 'Untitled Event'}</p>
-                  <p className="text-xs text-slate-500">{ev.time || ev.type || 'TBD'} - {ev.when ? new Date(ev.when).toLocaleString() : 'TBD'}</p>
-                  <p className="text-xs text-slate-400 mt-1">{ev.location || 'Location TBD'} - {ev.registered_users ? ev.registered_users.length : (ev.attendees || 0)} max</p>
-                </div>
-                <button onClick={() => handleDeleteEvent(ev.id || ev._id)} className="p-1 text-slate-400 hover:text-red-500 shrink-0">
-                  <TrashIcon className="h-4 w-4" />
-                </button>
+            <div className="card p-5">
+              <SectionHead title="Quick actions" subtitle="Jump straight into common tasks" />
+              <div className="grid sm:grid-cols-2 gap-3">
+                {quick.map((q) => (
+                  <button key={q.label} onClick={q.run} className="rounded-xl bg-gradient-to-br from-primary-50 to-accent-50 dark:from-primary-700 dark:to-primary-800 border border-slate-100 dark:border-primary-600 p-4 text-left hover:border-primary transition-colors">
+                    <q.icon className="h-6 w-6 text-primary mb-2" />
+                    <p className="font-medium text-ink dark:text-white text-sm">{q.label}</p>
+                    <p className="text-xs text-slate-500">{q.hint}</p>
+                  </button>
+                ))}
               </div>
             </div>
-          ))}
-          {events.length === 0 && <p className="text-sm text-slate-400 col-span-full">No events scheduled.</p>}
-        </div>
-      </section>
+          </div>
 
-      {/* --- AUDIT LOG & SECURITY --- */}
-      <section>
-        <h2 className="font-heading text-3xl font-bold text-ink dark:text-white mb-6 border-b border-slate-100 dark:border-primary-700 pb-3">
-          Audit Log & Security
-        </h2>
-        <div className="grid lg:grid-cols-2 gap-4">
           <div className="card p-5">
-            <h3 className="font-heading text-lg font-semibold text-ink dark:text-white mb-3">Recent Audit Activity</h3>
+            <SectionHead title="Recent activity" action={<button onClick={() => setTab('security')} className="text-sm text-primary font-medium">View all</button>} />
             {auditLog.length === 0 ? (
-              <p className="text-sm text-slate-400">No recent activity.</p>
+              <Empty text="No recent activity." />
             ) : (
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {auditLog.map((a, i) => (
-                  <div key={a.id || i} className="flex gap-2.5 text-sm">
-                    <span className="h-2 w-2 rounded-full bg-primary mt-1.5 shrink-0" />
+              <div className="space-y-3">
+                {auditLog.slice(0, 5).map((a, i) => (
+                  <div key={a.id || i} className="flex gap-3 text-sm">
+                    <span className="h-2 w-2 rounded-full bg-accent mt-1.5 shrink-0" />
                     <div>
                       <p className="font-medium text-ink dark:text-white">{a.action || a.title}</p>
-                      <p className="text-xs text-slate-500">
-                        {a.user_id ? `User: ${a.user_id} - ` : ''}
-                        {a.timestamp ? new Date(a.timestamp).toLocaleString() : a.time || ''}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="card p-5">
-            <h3 className="font-heading text-lg font-semibold text-ink dark:text-white mb-3">Security Alerts</h3>
-            {securityAlerts.length === 0 ? (
-              <p className="text-sm text-slate-400">No active alerts. System secure.</p>
-            ) : (
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {securityAlerts.map((s, i) => (
-                  <div key={s.id || i} className="flex gap-2.5 text-sm">
-                    <ShieldExclamationIcon className={`h-5 w-5 mt-0.5 shrink-0 ${levelColor[s.level?.toLowerCase()] || 'text-slate-400'}`} />
-                    <div>
-                      <p className="font-medium text-ink dark:text-white">{s.title || s.action}</p>
-                      <p className="text-xs text-slate-500">{s.detail || s.description}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">{s.timestamp ? new Date(s.timestamp).toLocaleString() : ''}</p>
+                      <p className="text-xs text-slate-500">{a.user_id ? 'User: ' + a.user_id + ' - ' : ''}{a.timestamp ? new Date(a.timestamp).toLocaleString() : a.time || ''}</p>
                     </div>
                   </div>
                 ))}
@@ -983,7 +572,460 @@ export default function Admin() {
             )}
           </div>
         </div>
-      </section>
+      )}
+
+      {/* ACCESS CODES */}
+      {tab === 'access' && (
+        <section>
+          <SectionHead
+            title="Institution Access Codes"
+            subtitle="Generate and manage unique codes for mentor and investor registration."
+            action={
+              <div className="flex gap-2">
+                <button onClick={() => setShowSendEmail(!showSendEmail)} className="btn btn-outline text-sm"><EnvelopeIcon className="h-4 w-4" /> Send via Email</button>
+                <button onClick={() => setShowCreateCode(!showCreateCode)} className="btn btn-primary text-sm"><PlusIcon className="h-4 w-4" /> Generate Codes</button>
+              </div>
+            }
+          />
+
+          {showSendEmail && (
+            <form onSubmit={handleSendCode} className="card p-4 mb-4 flex flex-wrap gap-3 max-w-xl">
+              <input type="email" placeholder="user@example.com" className="input text-sm flex-1 min-w-[12rem]" value={sendEmail} onChange={(e) => setSendEmail(e.target.value)} required />
+              <button type="submit" className="btn btn-primary text-sm">Send Code</button>
+              <button type="button" onClick={() => setShowSendEmail(false)} className="btn btn-outline text-sm">Cancel</button>
+            </form>
+          )}
+
+          {showCreateCode && (
+            <form onSubmit={handleCreateCode} className="card p-4 mb-4 grid sm:grid-cols-3 gap-3 max-w-xl">
+              <input placeholder="Prefix (e.g. MINT)" className="input text-sm" value={codeForm.prefix} onChange={(e) => setCodeForm({ ...codeForm, prefix: e.target.value })} />
+              <input type="number" min="1" max="50" placeholder="Count" className="input text-sm" value={codeForm.count} onChange={(e) => setCodeForm({ ...codeForm, count: e.target.value })} />
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setShowCreateCode(false)} className="btn btn-outline text-sm flex-1">Cancel</button>
+                <button type="submit" className="btn btn-primary text-sm flex-1">Generate</button>
+              </div>
+            </form>
+          )}
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+            {codes.map((c, idx) => (
+              <div key={c.code || idx} className={'card p-4 ' + (c.used ? 'opacity-60' : 'border-l-4 border-l-emerald-400')}>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-mono text-sm font-bold text-primary">{c.code}</p>
+                  <span className={'text-xs px-2 py-0.5 rounded-full ' + (c.used ? 'bg-slate-100 text-slate-500' : 'bg-emerald-100 text-emerald-700')}>{c.used ? 'Used' : 'Available'}</span>
+                </div>
+                {c.used && c.used_by && <p className="text-xs text-slate-400 mt-1 truncate">Used by: {c.used_by}</p>}
+              </div>
+            ))}
+            {codes.length === 0 && <Empty text="No codes generated yet." />}
+          </div>
+
+          <h3 className="font-heading text-lg font-semibold text-ink dark:text-white mb-3">Pending Access Requests ({pendingRequests.length})</h3>
+          <div className="card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-slate-500 bg-slate-50 dark:bg-primary-800 border-b border-slate-100 dark:border-primary-700">
+                    <th className="px-5 py-3 font-medium">Email</th>
+                    <th className="px-5 py-3 font-medium">Role</th>
+                    <th className="px-5 py-3 font-medium">Status</th>
+                    <th className="px-5 py-3 font-medium text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingRequests.map((req, idx) => (
+                    <tr key={req.request_id || idx} className="border-b border-slate-50 dark:border-primary-700 last:border-0 hover:bg-slate-50/50 dark:hover:bg-primary-800/50">
+                      <td className="px-5 py-3.5 text-ink dark:text-white">{req.email}</td>
+                      <td className="px-5 py-3.5 capitalize">{req.role}</td>
+                      <td className="px-5 py-3.5"><span className="badge bg-amber-100 text-amber-700">Pending</span></td>
+                      <td className="px-5 py-3.5 text-right"><button onClick={() => handleApproveRequest(req)} className="btn btn-primary text-xs">Approve & Generate</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {pendingRequests.length === 0 && <p className="p-6 text-sm text-slate-400 text-center">No pending requests.</p>}
+          </div>
+        </section>
+      )}
+
+      {/* USERS */}
+      {tab === 'users' && (
+        <section>
+          <SectionHead
+            title="User Management"
+            subtitle="Manage registered users, roles, and account status."
+            action={
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="relative">
+                  <MagnifyingGlassIcon className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input value={userQuery} onChange={(e) => setUserQuery(e.target.value)} placeholder="Search users..." className="input pl-9 w-56 text-sm" />
+                </div>
+                <button onClick={() => window.location.href = '/register'} className="btn btn-primary text-sm"><PlusIcon className="h-4 w-4" /> Add User</button>
+              </div>
+            }
+          />
+          <div className="card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-slate-500 border-b border-slate-100 dark:border-primary-700 bg-slate-50 dark:bg-primary-800">
+                    <th className="px-5 py-3 font-medium">User</th>
+                    <th className="px-5 py-3 font-medium">Role</th>
+                    <th className="px-5 py-3 font-medium">Status</th>
+                    <th className="px-5 py-3 font-medium text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredUsers.map((u, ui) => {
+                    const id = u.id || u._id
+                    const isEditing = editingUserId === id
+                    return (
+                      <tr key={id || 'user-' + ui} className="border-b border-slate-50 dark:border-primary-700 last:border-0 hover:bg-slate-50/50 dark:hover:bg-primary-800/50">
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <Avatar name={u.full_name || u.name} />
+                            <div className="min-w-0">
+                              <p className="font-medium text-ink dark:text-white truncate">{u.full_name || u.name}</p>
+                              <p className="text-xs text-slate-500 truncate">{u.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          {isEditing ? (
+                            <select value={u.role || 'founder'} onChange={(e) => handleRoleChange(id, e.target.value)} className="input !py-1 !text-xs">
+                              <option value="founder">Founder</option>
+                              <option value="mentor">Mentor</option>
+                              <option value="admin">Admin</option>
+                            </select>
+                          ) : (
+                            <span className={'badge capitalize ' + (roleColor[u.role] || 'bg-slate-100 text-slate-600')}>{u.role || 'founder'}</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          {isEditing ? (
+                            <select value={u.status || 'active'} onChange={(e) => handleStatusChange(id, e.target.value)} className="input !py-1 !text-xs">
+                              <option value="active">Active</option>
+                              <option value="pending">Pending</option>
+                              <option value="inactive">Inactive</option>
+                            </select>
+                          ) : (
+                            <span className={'badge capitalize ' + (statusColor[u.status] || 'bg-slate-100 text-slate-600')}>{u.status || 'active'}</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center justify-end gap-1.5 text-slate-400">
+                            <button onClick={() => setEditingUserId(isEditing ? null : id)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-primary-700" title={isEditing ? 'Done' : 'Edit'}>
+                              <PencilSquareIcon className="h-4 w-4" />
+                            </button>
+                            <button onClick={() => handleDeleteUser(id)} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-500" title="Delete">
+                              <TrashIcon className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {filteredUsers.length === 0 && <p className="p-6 text-sm text-slate-400 text-center">No users found.</p>}
+          </div>
+        </section>
+      )}
+
+      {/* FUNDING */}
+      {tab === 'funding' && (
+        <section className="space-y-8">
+          <div>
+            <SectionHead
+              title="Grant Programs"
+              subtitle="Create grant programs and review applications."
+              action={<button onClick={() => setShowCreateGrant(!showCreateGrant)} className="btn btn-primary text-sm"><PlusIcon className="h-4 w-4" /> New Grant Program</button>}
+            />
+            {showCreateGrant && (
+              <form onSubmit={handleCreateGrant} className="card p-4 mb-4 grid sm:grid-cols-2 lg:grid-cols-6 gap-3">
+                <input required placeholder="Grant name" className="input text-sm" value={grantForm.grant_name} onChange={(e) => setGrantForm({ ...grantForm, grant_name: e.target.value })} />
+                <input required placeholder="Program" className="input text-sm" value={grantForm.program} onChange={(e) => setGrantForm({ ...grantForm, program: e.target.value })} />
+                <input required type="number" placeholder="Max Amount" className="input text-sm" value={grantForm.max_amount} onChange={(e) => setGrantForm({ ...grantForm, max_amount: e.target.value })} />
+                <input type="number" placeholder="Min Amount" className="input text-sm" value={grantForm.min_amount} onChange={(e) => setGrantForm({ ...grantForm, min_amount: e.target.value })} />
+                <input required type="date" className="input text-sm" value={grantForm.deadline} onChange={(e) => setGrantForm({ ...grantForm, deadline: e.target.value })} />
+                <input required placeholder="Sectors (comma separated)" className="input text-sm" value={grantForm.sectors} onChange={(e) => setGrantForm({ ...grantForm, sectors: e.target.value })} />
+                <div className="flex gap-2 sm:col-span-2 lg:col-span-6">
+                  <button type="button" onClick={() => setShowCreateGrant(false)} className="btn btn-outline text-sm flex-1">Cancel</button>
+                  <button type="submit" className="btn btn-primary text-sm flex-1">Create</button>
+                </div>
+              </form>
+            )}
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {grants.map((g) => (
+                <div key={g.id || g._id} className="card p-5 border-t-4 border-t-accent hover:shadow-soft transition-shadow">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-heading font-semibold text-ink dark:text-white truncate">{g.grant_name || g.name || 'Unnamed'}</p>
+                      <p className="text-xs text-slate-500">{g.program || g.type || 'General'}</p>
+                    </div>
+                    <button onClick={() => handleDeleteGrant(g.grant_id || g.id || g._id)} className="p-1 text-slate-400 hover:text-red-500 shrink-0"><TrashIcon className="h-4 w-4" /></button>
+                  </div>
+                  <p className="text-2xl font-heading font-semibold text-primary mt-3">${(g.max_amount || g.amount || 0).toLocaleString()}</p>
+                  <p className="text-xs text-slate-400">Min: ${(g.min_amount || 0).toLocaleString()} - Deadline: {g.deadline || 'TBD'}</p>
+                  <div className="flex flex-wrap gap-1 mt-3">
+                    {(g.sectors || g.tags || []).map((t, tIdx) => <span key={t + '-' + tIdx} className={chip}>{t}</span>)}
+                  </div>
+                </div>
+              ))}
+              {grants.length === 0 && <Empty text="No grant programs yet." />}
+            </div>
+          </div>
+
+          <div>
+            <SectionHead title={'Pending Grant Applications (' + pendingGrants.length + ')'} />
+            <div className="space-y-2">
+              {pendingGrants.map((g) => (
+                <div key={g.id || g._id} className="card p-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+                  <div className="min-w-0">
+                    <p className="font-medium text-ink dark:text-white truncate">{g.grant_name || g.grant_id || 'Unknown Grant'}</p>
+                    <p className="text-xs text-slate-500">${(g.amount_requested || g.amount || 0).toLocaleString()} - {g.applicant_name || g.applicant_email || 'Unknown applicant'}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => handleGrantDecision(g.id || g._id, 'approved')} className={approveBtn} title="Approve"><CheckIcon className="h-4 w-4" /> Approve</button>
+                    <button onClick={() => handleGrantDecision(g.id || g._id, 'rejected')} className={rejectBtn} title="Reject"><XMarkIcon className="h-4 w-4" /> Reject</button>
+                  </div>
+                </div>
+              ))}
+              {pendingGrants.length === 0 && <Empty text="No pending applications." />}
+            </div>
+          </div>
+
+          <div>
+            <SectionHead title={'Founder Funding Requests (' + pendingFunding.length + ')'} subtitle="Review and decide on founder funding requests." />
+            <div className="space-y-2">
+              {pendingFunding.map((r) => (
+                <div key={r.id || r._id || r.request_id} className="card p-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+                  <div className="min-w-0">
+                    <p className="font-medium text-ink dark:text-white truncate">{r.stage || 'Funding Request'}</p>
+                    <p className="text-xs text-slate-500">${(r.amount || 0).toLocaleString()} requested {r.user_id ? '- user: ' + r.user_id : ''}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => handleFundingApprove(r.request_id, r.amount)} className={approveBtn} title="Approve"><CheckIcon className="h-4 w-4" /> Approve</button>
+                    <button onClick={() => handleFundingReject(r.request_id)} className={rejectBtn} title="Reject"><XMarkIcon className="h-4 w-4" /> Reject</button>
+                  </div>
+                </div>
+              ))}
+              {pendingFunding.length === 0 && <Empty text="No pending funding requests." />}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* IDEAS */}
+      {tab === 'ideas' && (
+        <section>
+          <SectionHead title="Ideas Management" subtitle="Review submitted ideas and run AI evaluations." />
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {ideas.map((idea) => (
+              <div key={idea.id || idea._id} className="card p-5 flex flex-col hover:shadow-soft transition-shadow">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-heading font-semibold text-ink dark:text-white truncate">{idea.title || 'Untitled'}</p>
+                    <p className="text-xs text-slate-500">{idea.industry || idea.sector || 'General'} - Innovation: {idea.innovation_level || 'N/A'}/10</p>
+                  </div>
+                  <span className={'badge shrink-0 capitalize ' + (statusColor[idea.status?.toLowerCase()] || 'bg-slate-100 text-slate-600')}>{idea.status || 'pending'}</span>
+                </div>
+                <p className="text-sm text-slate-500 mt-3 line-clamp-3 flex-1">{idea.problem || idea.description || 'No description'}</p>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {idea.status !== 'approved' && idea.status !== 'rejected' && (
+                    <>
+                      <button onClick={() => handleApproveIdea(idea.id || idea._id)} className={approveBtn}><CheckIcon className="h-4 w-4" /> Approve</button>
+                      <button onClick={() => handleRejectIdea(idea.id || idea._id)} className={rejectBtn}><XMarkIcon className="h-4 w-4" /> Reject</button>
+                    </>
+                  )}
+                  {idea.status === 'approved' && <span className="badge bg-emerald-100 text-emerald-700">Approved</span>}
+                  {idea.status === 'rejected' && <span className="badge bg-red-100 text-red-700">Rejected</span>}
+                </div>
+                <div className="flex gap-2 mt-3">
+                  <button onClick={() => handleEvaluateIdea(idea.id || idea._id)} className="btn btn-primary text-xs flex-1" disabled={idea.status === 'evaluated'}>
+                    {idea.status === 'evaluated' ? 'Evaluated' : 'Run AI Evaluation'}
+                  </button>
+                  <button onClick={() => handleDeleteIdea(idea.id || idea._id || idea.idea_id)} className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500"><TrashIcon className="h-4 w-4" /></button>
+                </div>
+              </div>
+            ))}
+            {ideas.length === 0 && <Empty text="No ideas submitted yet." />}
+          </div>
+        </section>
+      )}
+
+      {/* MENTORS & EVENTS */}
+      {tab === 'community' && (
+        <section className="space-y-10">
+          <div>
+            <SectionHead
+              title="Mentor Management"
+              subtitle="Add and manage industry mentors for the incubator."
+              action={<button onClick={() => setShowCreateMentor(!showCreateMentor)} className="btn btn-primary text-sm"><PlusIcon className="h-4 w-4" /> Add Mentor</button>}
+            />
+            {showCreateMentor && (
+              <form onSubmit={handleCreateMentor} className="card p-4 mb-4 grid sm:grid-cols-2 lg:grid-cols-6 gap-3">
+                <input required placeholder="Full name" className="input text-sm" value={mentorForm.full_name} onChange={(e) => setMentorForm({ ...mentorForm, full_name: e.target.value })} />
+                <input required type="number" placeholder="Years of experience" className="input text-sm" value={mentorForm.years_experience} onChange={(e) => setMentorForm({ ...mentorForm, years_experience: e.target.value })} />
+                <input required placeholder="Expertise areas (comma separated)" className="input text-sm sm:col-span-2" value={mentorForm.expertise_areas} onChange={(e) => setMentorForm({ ...mentorForm, expertise_areas: e.target.value })} />
+                <input placeholder="Email" className="input text-sm" value={mentorForm.email} onChange={(e) => setMentorForm({ ...mentorForm, email: e.target.value })} />
+                <input placeholder="Bio (optional)" className="input text-sm sm:col-span-2 lg:col-span-6" value={mentorForm.bio} onChange={(e) => setMentorForm({ ...mentorForm, bio: e.target.value })} />
+                <div className="flex gap-2 sm:col-span-2 lg:col-span-6">
+                  <button type="button" onClick={() => setShowCreateMentor(false)} className="btn btn-outline text-sm flex-1">Cancel</button>
+                  <button type="submit" className="btn btn-primary text-sm flex-1">Create</button>
+                </div>
+              </form>
+            )}
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {mentors.map((m) => (
+                <div key={m.id || m._id} className="card p-5 hover:shadow-soft transition-shadow">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Avatar name={m.full_name || m.name} />
+                      <div className="min-w-0">
+                        <p className="font-medium text-ink dark:text-white truncate">{m.full_name || m.name || 'Unnamed'}</p>
+                        <p className="text-xs text-slate-500 truncate">{m.bio || m.title || 'Mentor'}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => handleDeleteMentor(m.mentor_id || m.id || m._id)} className="p-1 text-slate-400 hover:text-red-500 shrink-0"><TrashIcon className="h-4 w-4" /></button>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 mt-3 text-sm text-slate-500">
+                    <span>{m.years_experience || m.years || 0} years</span>
+                    <span className="text-amber-500">★ {m.rating || 'N/A'}</span>
+                    <span className="truncate">{m.email || 'N/A'}</span>
+                  </div>
+                  {m.expertise && (
+                    <div className="flex flex-wrap gap-1 mt-3">
+                      {m.expertise.split(',').map((ex, exIdx) => <span key={ex + exIdx} className={chip}>{ex.trim()}</span>)}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {mentors.length === 0 && <Empty text="No mentors added yet." />}
+            </div>
+          </div>
+
+          <div>
+            <SectionHead
+              title="Event Management"
+              subtitle="Schedule workshops, demo days, and meetings."
+              action={<button onClick={() => setShowCreateEvent(!showCreateEvent)} className="btn btn-primary text-sm"><PlusIcon className="h-4 w-4" /> Schedule Event</button>}
+            />
+            {showCreateEvent && (
+              <form onSubmit={handleCreateEvent} className="card p-4 mb-4 grid sm:grid-cols-2 lg:grid-cols-6 gap-3">
+                <input required placeholder="Event title" className="input text-sm" value={eventForm.title} onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })} />
+                <input required type="date" className="input text-sm" onChange={(e) => {
+                  const [y, m, d] = e.target.value.split('-')
+                  setEventForm({ ...eventForm, year: y, month: String(Number(m)), day: String(Number(d)) })
+                }} />
+                <input required placeholder="Location" className="input text-sm" value={eventForm.location} onChange={(e) => setEventForm({ ...eventForm, location: e.target.value })} />
+                <input required type="time" placeholder="Time" className="input text-sm" value={eventForm.time} onChange={(e) => setEventForm({ ...eventForm, time: e.target.value })} />
+                <div className="flex gap-2 sm:col-span-2 lg:col-span-6">
+                  <button type="button" onClick={() => setShowCreateEvent(false)} className="btn btn-outline text-sm flex-1">Cancel</button>
+                  <button type="submit" className="btn btn-primary text-sm flex-1">Create</button>
+                </div>
+              </form>
+            )}
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {events.map((ev, evIdx) => (
+                <div key={ev.id || ev._id || 'event-' + evIdx} className="card overflow-hidden hover:shadow-soft transition-shadow">
+                  <div className={'h-16 flex items-center justify-center ' + (ev.type === 'Workshop' ? 'bg-primary-700' : ev.type === 'Meeting' ? 'bg-primary-400' : ev.type === 'Demo Day' ? 'bg-accent-500' : 'bg-gradient-to-r from-primary-600 to-primary-400')}>
+                    <CalendarDaysIcon className="h-8 w-8 text-white/90" />
+                  </div>
+                  <div className="p-4 flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-ink dark:text-white truncate">{ev.title || 'Untitled Event'}</p>
+                      <p className="text-xs text-slate-500">{ev.time || ev.type || 'TBD'} - {ev.when ? new Date(ev.when).toLocaleString() : 'TBD'}</p>
+                      <p className="text-xs text-slate-400 mt-1">{ev.location || 'Location TBD'} - {ev.registered_users ? ev.registered_users.length : (ev.attendees || 0)} max</p>
+                    </div>
+                    <button onClick={() => handleDeleteEvent(ev.id || ev._id)} className="p-1 text-slate-400 hover:text-red-500 shrink-0"><TrashIcon className="h-4 w-4" /></button>
+                  </div>
+                </div>
+              ))}
+              {events.length === 0 && <Empty text="No events scheduled." />}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* SECURITY */}
+      {tab === 'security' && (
+        <section>
+          <SectionHead title="Audit Log & Security" subtitle="Track admin activity and review security alerts." />
+          <div className="grid lg:grid-cols-2 gap-4">
+            <div className="card p-5">
+              <h3 className="font-heading text-lg font-semibold text-ink dark:text-white mb-3">Recent Audit Activity</h3>
+              {auditLog.length === 0 ? (
+                <Empty text="No recent activity." />
+              ) : (
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {auditLog.map((a, i) => (
+                    <div key={a.id || i} className="flex gap-3 text-sm">
+                      <span className="h-2 w-2 rounded-full bg-primary mt-1.5 shrink-0" />
+                      <div>
+                        <p className="font-medium text-ink dark:text-white">{a.action || a.title}</p>
+                        <p className="text-xs text-slate-500">{a.user_id ? 'User: ' + a.user_id + ' - ' : ''}{a.timestamp ? new Date(a.timestamp).toLocaleString() : a.time || ''}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="card p-5">
+              <h3 className="font-heading text-lg font-semibold text-ink dark:text-white mb-3">Security Alerts</h3>
+              {securityAlerts.length === 0 ? (
+                <div className="rounded-xl bg-emerald-50 dark:bg-primary-700 text-emerald-700 dark:text-emerald-300 text-sm p-4 flex items-center gap-3">
+                  <ShieldCheckIcon className="h-6 w-6" /> No active alerts. System secure.
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {securityAlerts.map((sa, i) => (
+                    <div key={sa.id || i} className="flex gap-3 text-sm">
+                      <ShieldExclamationIcon className={'h-5 w-5 mt-0.5 shrink-0 ' + (levelColor[sa.level?.toLowerCase()] || 'text-slate-400')} />
+                      <div>
+                        <p className="font-medium text-ink dark:text-white">{sa.title || sa.action}</p>
+                        <p className="text-xs text-slate-500">{sa.detail || sa.description}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">{sa.timestamp ? new Date(sa.timestamp).toLocaleString() : ''}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
     </div>
+  )
+}
+
+function SectionHead({ title, subtitle, action }) {
+  return (
+    <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
+      <div>
+        <h2 className="font-heading text-xl font-semibold text-ink dark:text-white">{title}</h2>
+        {subtitle && <p className="text-sm text-slate-500 mt-0.5">{subtitle}</p>}
+      </div>
+      {action}
+    </div>
+  )
+}
+
+function Empty({ text }) {
+  return (
+    <div className="col-span-full rounded-xl border border-dashed border-slate-200 dark:border-primary-600 py-8 text-center text-sm text-slate-400">
+      {text}
+    </div>
+  )
+}
+
+function Avatar({ name }) {
+  const ch = String(name || '?').trim().charAt(0).toUpperCase()
+  return (
+    <span className="h-9 w-9 shrink-0 rounded-full bg-gradient-to-br from-primary-500 to-accent-400 text-white flex items-center justify-center text-sm font-semibold">
+      {ch}
+    </span>
   )
 }
