@@ -204,12 +204,12 @@ export const sessionAPI = {
 // TASK API
 // ============================================================
 export const taskAPI = {
-  getAll: (startupId) => api.get('/api/tasks/' + (startupId ? '?startup_id=' + startupId : '')),
+  getAll: (startupId) => api.get('/api/tasks/', { params: { startup_id: startupId } }),
   getById: (id) => api.get('/api/tasks/' + id),
   create: (data) => api.post('/api/tasks/', data),
   update: (id, data) => api.put('/api/tasks/' + id, data),
   delete: (id) => api.delete('/api/tasks/' + id),
-  getBurndown: () => api.get('/api/tasks/burndown'),
+  getBurndown: (startupId, days = 14) => api.get('/api/tasks/burndown', { params: { startup_id: startupId, days } }),
 }
 
 // ============================================================
