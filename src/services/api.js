@@ -82,6 +82,10 @@ export const evaluationAPI = {
   create: (data) => api.post('/api/evaluations/', data),
   getAll: () => api.get('/api/evaluations'),
   getById: (id) => api.get(`/api/evaluations/${id}/`),
+  // Save a completed AI evaluation result
+  save: (data) => api.post('/api/evaluations/save', data),
+  // Get the current user's evaluation history
+  getMy: () => api.get('/api/evaluations/my'),
 }
 
 // ============================================================
@@ -311,4 +315,8 @@ export const milestoneAPI = {
 
 export const pitchAPI = {
   coach: (pitch, language) => api.post('/api/pitch/coach', { pitch, language }),
+}
+
+export const arenaAPI = {
+  call: (payload) => api.post('/api/pitch/arena', payload),
 }
