@@ -320,3 +320,15 @@ export const pitchAPI = {
 export const arenaAPI = {
   call: (payload) => api.post('/api/pitch/arena', payload),
 }
+
+export const accountAPI = {
+  me: () => api.get('/api/account/me'),
+  update: (data) => api.put('/api/account/me', data),
+  changePassword: (data) => api.put('/api/account/password', data),
+}
+
+export const notificationAPI = {
+  list: () => api.get('/api/notifications'),
+  read: (id) => api.put(`/api/notifications/${id}/read`),
+  readAll: () => api.put('/api/notifications/read-all'),
+}

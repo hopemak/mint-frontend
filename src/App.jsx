@@ -24,6 +24,7 @@ import Recommendations from './pages/Recommendations/Recommendations.jsx'
 import Mentors from './pages/Recommendations/Mentors.jsx'
 import Admin from './pages/Admin/Admin.jsx'
 import PitchCoach from './pages/Pitch/PitchCoach.jsx'
+import InvestorArena from './pages/Pitch/InvestorArena.jsx'
 import ShareStory from './pages/Testimonials/ShareStory.jsx'
 import AdminTestimonials from './pages/Testimonials/AdminTestimonials.jsx'
 import Chatbot from './pages/Chatbot/Chatbot.jsx'
@@ -68,6 +69,7 @@ export default function App() {
             <Route path="/chatbot" element={<Chatbot />} />
             <Route path="/share-story" element={<ShareStory />} />
             <Route path="/pitch-coach" element={<PitchCoach />} />
+            <Route path="/investor-arena" element={<InvestorArena />} />
           </Route>
 
 

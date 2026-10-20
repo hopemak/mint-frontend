@@ -22,6 +22,7 @@ const nav = [
   { to: '/idea-submission', label: 'Submit Idea', icon: LightBulbIcon, roles: ['founder'] },
   { to: '/evaluate', label: 'AI Evaluation', icon: SparklesIcon, roles: ['founder'] },
   { to: '/pitch-coach', label: 'Pitch Coach', icon: ChatBubbleLeftRightIcon, roles: ['founder'] },
+  { to: '/investor-arena', label: 'Investor Arena', icon: SparklesIcon, roles: ['founder'] },
   { to: '/workspace', label: 'Workspace', icon: RectangleGroupIcon, roles: ['founder', 'admin'] },
   { to: '/prototype', label: 'Prototype', icon: RocketLaunchIcon, roles: ['founder', 'admin'] },
   { to: '/recommendations', label: 'AI Recommendations', icon: SparklesIcon, roles: ['founder'] },
