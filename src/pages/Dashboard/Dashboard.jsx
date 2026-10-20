@@ -260,8 +260,71 @@ const MAP_RAMP = [
 ]
 const rampFill = (n) => (MAP_RAMP.find((r) => n <= r.max) || MAP_RAMP[0]).fill
 
+// Finds the point deepest inside the largest ring of an SVG path made of M / L / Z
+// commands (the point furthest from every edge). Count badges are placed here so they
+// stay inside crescent-shaped regions such as Oromia, where a plain centre falls outside.
+function pathCentroid(d) {
+  const rings = d.split('M').filter(Boolean).map((ring) => {
+    const n = (ring.match(/-?\d+(?:\.\d+)?/g) || []).map(Number)
+    const pts = []
+    for (let i = 0; i + 1 < n.length; i += 2) pts.push([n[i], n[i + 1]])
+    return pts
+  }).filter((p) => p.length >= 3)
+  if (!rings.length) return { x: 0, y: 0 }
+
+  const area = (p) => Math.abs(p.reduce((a, [x0, y0], i) => {
+    const [x1, y1] = p[(i + 1) % p.length]
+    return a + (x0 * y1 - x1 * y0)
+  }, 0) / 2)
+  const pts = rings.reduce((best, r) => (area(r) > area(best) ? r : best))
+
+  const inside = (x, y) => {
+    let c = false
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const [xi, yi] = pts[i]
+      const [xj, yj] = pts[j]
+      if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c
+    }
+    return c
+  }
+  const edgeDist = (x, y) => {
+    let m = Infinity
+    for (let i = 0; i < pts.length; i++) {
+      const [x0, y0] = pts[i]
+      const [x1, y1] = pts[(i + 1) % pts.length]
+      const dx = x1 - x0
+      const dy = y1 - y0
+      const t = Math.max(0, Math.min(1, ((x - x0) * dx + (y - y0) * dy) / (dx * dx + dy * dy || 1)))
+      m = Math.min(m, Math.hypot(x - (x0 + t * dx), y - (y0 + t * dy)))
+    }
+    return m
+  }
+
+  const xs = pts.map((p) => p[0])
+  const ys = pts.map((p) => p[1])
+  const minX = Math.min(...xs)
+  const maxX = Math.max(...xs)
+  const minY = Math.min(...ys)
+  const maxY = Math.max(...ys)
+  const steps = 28
+  let best = { x: (minX + maxX) / 2, y: (minY + maxY) / 2, d: -1 }
+  for (let i = 0; i <= steps; i++) {
+    for (let j = 0; j <= steps; j++) {
+      const x = minX + ((maxX - minX) * i) / steps
+      const y = minY + ((maxY - minY) * j) / steps
+      if (!inside(x, y)) continue
+      const dist = edgeDist(x, y)
+      if (dist > best.d) best = { x, y, d: dist }
+    }
+  }
+  return { x: best.x, y: best.y }
+}
+
+const SHAPES_WITH_CENTRE = REGION_SHAPES.map((s) => ({ ...s, c: pathCentroid(s.d) }))
+
 function EthiopiaMap() {
   const [data, setData] = useState(null)
+  const [sel, setSel] = useState(null)
 
   useEffect(() => {
     let live = true
@@ -273,52 +336,140 @@ function EthiopiaMap() {
 
   const areas = useMemo(() => {
     const regions = data?.regions || {}
-    return REGION_SHAPES.map((s) => {
+    return SHAPES_WITH_CENTRE.map((s) => {
       const cfg = AREAS[s.id] || { label: s.id, keys: [s.id] }
-      const count = cfg.keys.reduce((sum, k) => sum + (regions[k]?.count || 0), 0)
-      return { ...s, label: cfg.label, count }
+      let count = 0
+      const sectors = {}
+      cfg.keys.forEach((k) => {
+        const r = regions[k]
+        if (!r) return
+        count += r.count || 0
+        Object.entries(r.sectors || {}).forEach(([sec, n]) => { sectors[sec] = (sectors[sec] || 0) + n })
+      })
+      return { ...s, label: cfg.label, count, sectors }
     })
   }, [data])
 
   const total = areas.reduce((s, a) => s + a.count, 0)
-  const active = areas.filter((a) => a.count > 0).length
+  const ranked = useMemo(() => areas.filter((a) => a.count > 0).sort((a, b) => b.count - a.count), [areas])
+  const maxCount = ranked[0]?.count || 1
+  const unassigned = data?.unassigned || 0
+  const focusId = sel || ranked[0]?.id || null
+  // Draw the highlighted region last so its outline sits above its neighbours.
+  const drawOrder = [...areas.filter((a) => a.id !== sel), ...areas.filter((a) => a.id === sel)]
+
+  const pick = (id) => () => setSel(id)
+  const clear = () => setSel(null)
 
   return (
-    <figure className="mt-4 flex flex-1 flex-col justify-center">
+    <figure className="mt-4 flex flex-1 flex-col" onMouseLeave={clear}>
       <svg
         viewBox={`0 0 ${MAP_W} ${MAP_H}`}
-        role="img"
-        aria-label={`Map of Ethiopia: ${total} startups across ${active} regions`}
-        className="mx-auto h-auto w-full max-w-[260px]" style={{ filter: 'drop-shadow(0 0 18px rgba(117,163,160,0.45))' }}
+        role="group"
+        aria-label={`Map of Ethiopia: ${total} startups across ${ranked.length} regions`}
+        className="mx-auto h-auto w-full max-w-[260px]"
+        style={{ filter: 'drop-shadow(0 0 18px rgba(117,163,160,0.45))' }}
       >
-        {areas.map((a) => (
+        {drawOrder.map((a) => (
           <path
             key={a.id}
             d={a.d}
             fill={rampFill(a.count)}
-            stroke="rgba(199,218,216,0.7)"
-            strokeWidth="1"
+            stroke={a.id === sel ? '#FFFFFF' : 'rgba(199,218,216,0.7)'}
+            strokeWidth={a.id === sel ? 2.5 : 1}
             strokeLinejoin="round"
-            className="transition-opacity hover:opacity-80"
-          >
-            <title>{`${a.label}: ${a.count} ${a.count === 1 ? 'startup' : 'startups'}`}</title>
-          </path>
+            tabIndex={0}
+            role="button"
+            aria-label={`${a.label}: ${a.count} ${a.count === 1 ? 'startup' : 'startups'}`}
+            className="cursor-pointer outline-none transition-opacity hover:opacity-90 focus-visible:opacity-90"
+            onMouseEnter={pick(a.id)}
+            onFocus={pick(a.id)}
+            onBlur={clear}
+            onClick={pick(a.id)}
+          />
         ))}
+        {/* Count badge inside every region that has startups */}
+        <g pointerEvents="none">
+          {areas.filter((a) => a.count > 0).map((a) => {
+            const r = a.count > 9 ? 21 : 17
+            return (
+              <g key={a.id} transform={`translate(${a.c.x} ${a.c.y})`}>
+                <circle r={r} fill="#0F2422" fillOpacity="0.88" stroke="#FFFFFF" strokeOpacity="0.8" strokeWidth="1.5" />
+                <text textAnchor="middle" dy="0.35em" fontSize="22" fontWeight="700" fill="#FFFFFF">{a.count}</text>
+              </g>
+            )
+          })}
+        </g>
       </svg>
-      <figcaption className="mt-2 flex items-center justify-between text-[11px] text-white/60">
-        <span>
-          {data === null
-            ? 'Loading regional data…'
-            : total > 0
-              ? `${total} ${total === 1 ? 'startup' : 'startups'} · ${active} of ${areas.length} regions`
-              : 'No regional data yet'}
-        </span>
-        <span className="flex items-center gap-1" aria-hidden="true">
-          Fewer
-          {MAP_RAMP.map((r) => <span key={r.fill} className="h-2 w-3 rounded-sm" style={{ background: r.fill }} />)}
-          More
-        </span>
-      </figcaption>
+
+      {/* Colour key */}
+      <div className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-white/55" aria-hidden="true">
+        None
+        {MAP_RAMP.map((r) => <span key={r.fill} className="h-2 w-4 rounded-sm" style={{ background: r.fill }} />)}
+        Most
+      </div>
+
+      {/* Distribution by region */}
+      <div className="mt-4 border-t border-white/10 pt-4">
+        <div className="flex items-baseline justify-between">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-white/60">Startups by region</h3>
+          <span className="text-[11px] text-white/55">
+            {data === null ? 'Loading…' : `${total} in ${ranked.length} of ${areas.length}`}
+          </span>
+        </div>
+
+        {data !== null && ranked.length === 0 ? (
+          <p className="mt-3 rounded-lg bg-white/[0.06] px-3 py-3 text-xs leading-relaxed text-white/70">
+            No startup has a region set yet. Add a region to a startup profile and its distribution will appear here.
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-2.5">
+            {ranked.slice(0, 5).map((a) => {
+              const on = a.id === focusId
+              const sectors = Object.entries(a.sectors).sort((x, y) => y[1] - x[1]).slice(0, 3)
+              return (
+                <li key={a.id}>
+                  <button
+                    type="button"
+                    onMouseEnter={pick(a.id)}
+                    onFocus={pick(a.id)}
+                    onBlur={clear}
+                    onClick={pick(a.id)}
+                    className="block w-full rounded-md text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  >
+                    <span className="flex items-baseline justify-between gap-2 text-xs">
+                      <span className={`truncate ${on ? 'font-semibold text-white' : 'text-white/80'}`}>{a.label}</span>
+                      <span className="shrink-0 tabular-nums text-white/70">
+                        <span className="font-semibold text-white">{a.count}</span> · {Math.round((a.count / total) * 100)}%
+                      </span>
+                    </span>
+                    <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-white/10">
+                      <span
+                        className="block h-full rounded-full transition-all duration-500"
+                        style={{ width: `${(a.count / maxCount) * 100}%`, background: on ? '#EF9C82' : '#75A3A0' }}
+                      />
+                    </span>
+                  </button>
+                  {on && sectors.length > 0 && (
+                    <ul className="mt-2 flex flex-wrap gap-1.5">
+                      {sectors.map(([name, n]) => (
+                        <li key={name} className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-white/85">
+                          {name} <span className="font-semibold tabular-nums text-white">{n}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        )}
+        {unassigned > 0 && (
+          <p className="mt-3 text-[11px] leading-relaxed text-white/50">
+            {unassigned} {unassigned === 1 ? 'startup has' : 'startups have'} no region set and {unassigned === 1 ? 'is' : 'are'} not shown.
+          </p>
+        )}
+      </div>
     </figure>
   )
 }
@@ -841,7 +992,7 @@ export default function Dashboard() {
                 className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium text-white/90 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 <Icon className="h-4 w-4 text-white/55 transition-colors group-hover:text-accent" />
-                <span className="flex-1 truncate">{label}</span>
+                <span className="flex-1 leading-snug">{label}</span>
                 <ChevronRightIcon className="h-3.5 w-3.5 text-white/30 transition-all group-hover:translate-x-0.5 group-hover:text-white" />
               </Link>
             ))}
