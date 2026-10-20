@@ -17,7 +17,28 @@ import {
   ClipboardDocumentCheckIcon,
   DocumentChartBarIcon,
 } from '@heroicons/react/24/outline'
-import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid'
+import {
+  CheckCircleIcon as CheckCircleSolid,
+  AcademicCapIcon as AcademicCapSolid,
+  UsersIcon as UsersSolid,
+  VideoCameraIcon as VideoCameraSolid,
+  PresentationChartLineIcon as PresentationSolid,
+  TrophyIcon as TrophySolid,
+  UserGroupIcon as UserGroupSolid,
+  CalendarDaysIcon as CalendarDaysSolid,
+  RocketLaunchIcon as RocketLaunchSolid,
+  BuildingOffice2Icon as BuildingOffice2Solid,
+  BanknotesIcon as BanknotesSolid,
+  ArrowTrendingUpIcon as ArrowTrendingUpSolid,
+  ChartBarIcon as ChartBarSolid,
+  ChartPieIcon as ChartPieSolid,
+  BoltIcon as BoltSolid,
+  ClipboardDocumentCheckIcon as ClipboardCheckSolid,
+  BeakerIcon as BeakerSolid,
+  FlagIcon as FlagSolid,
+  SparklesIcon as SparklesSolid,
+  LightBulbIcon as LightBulbSolid,
+} from '@heroicons/react/24/solid'
 import {
   ResponsiveContainer,
   AreaChart,
@@ -113,10 +134,49 @@ function Card({ children, className = '' }) {
   )
 }
 
-function CardHeader({ title, subtitle, action }) {
+const BADGE_TONES = {
+  teal: 'from-primary-400 to-primary-600',
+  coral: 'from-accent-300 to-accent-500',
+  sky: 'from-sky-400 to-sky-600',
+  violet: 'from-violet-400 to-violet-600',
+  emerald: 'from-emerald-400 to-emerald-600',
+  amber: 'from-amber-300 to-amber-500',
+}
+const BADGE_SIZES = {
+  sm: { box: 'h-8 w-8 rounded-lg', icon: 'h-4 w-4' },
+  md: { box: 'h-10 w-10 rounded-xl', icon: 'h-5 w-5' },
+  lg: { box: 'h-12 w-12 rounded-2xl', icon: 'h-6 w-6' },
+}
+
+function IconBadge({ icon: Icon, tone = 'teal', size = 'md', className = '' }) {
+  const sz = BADGE_SIZES[size]
+  return (
+    <span
+      aria-hidden="true"
+      className={`inline-flex shrink-0 items-center justify-center bg-gradient-to-br text-white shadow-sm ring-1 ring-inset ring-white/25 ${BADGE_TONES[tone]} ${sz.box} ${className}`}
+    >
+      <Icon className={sz.icon} />
+    </span>
+  )
+}
+
+// Pick an icon that matches what the event actually is.
+function eventIcon(e) {
+  const t = `${e.type || ''} ${e.title || ''}`.toLowerCase()
+  if (/webinar|online|virtual|zoom/.test(t)) return VideoCameraSolid
+  if (/pitch|demo/.test(t)) return PresentationSolid
+  if (/hackathon|competition|award|contest/.test(t)) return TrophySolid
+  if (/network|mixer|community/.test(t)) return UserGroupSolid
+  if (/workshop|training|bootcamp|course|class/.test(t)) return AcademicCapSolid
+  if (/meeting|mentor|session|call/.test(t)) return UsersSolid
+  return CalendarDaysSolid
+}
+
+function CardHeader({ title, subtitle, action, icon, tone }) {
   return (
     <header className="flex items-start justify-between gap-4 px-5 pt-5">
-      <div className="min-w-0">
+      {icon && <IconBadge icon={icon} tone={tone} size="sm" />}
+      <div className="min-w-0 flex-1">
         <h2 className="font-heading text-[15px] font-semibold leading-tight text-slate-900 dark:text-white">
           {title}
         </h2>
@@ -265,7 +325,7 @@ function EthiopiaMap() {
 
 /* ─────────────────────────────── KPI card ──────────────────────────────── */
 
-function KpiCard({ icon: Icon, label, value, hint, loading, to }) {
+function KpiCard({ icon, tone, label, value, hint, loading, to }) {
   return (
     <Link
       to={to}
@@ -273,9 +333,7 @@ function KpiCard({ icon: Icon, label, value, hint, loading, to }) {
     >
       <Card className="h-full p-5 transition-shadow group-hover:shadow-soft">
         <div className="flex items-center justify-between">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-700 dark:text-primary-100">
-            <Icon className="h-5 w-5" />
-          </span>
+          <IconBadge icon={icon} tone={tone} size="md" />
           <ChevronRightIcon className="h-4 w-4 text-slate-300 transition-all group-hover:translate-x-0.5 group-hover:text-primary-500" />
         </div>
         <div className="mt-5">
@@ -296,11 +354,14 @@ function KpiCard({ icon: Icon, label, value, hint, loading, to }) {
 
 /* ───────────────────────────── Startup overview ────────────────────────── */
 
-function Metric({ label, children, foot }) {
+function Metric({ label, children, foot, icon, tone }) {
   return (
     <div className="flex h-full flex-col rounded-xl border border-slate-100 bg-slate-50/70 p-4 dark:border-primary-700 dark:bg-primary-900/40">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</p>
-      <div className="mt-2">{children}</div>
+      <div className="flex items-center gap-2">
+        {icon && <IconBadge icon={icon} tone={tone} size="sm" />}
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</p>
+      </div>
+      <div className="mt-3">{children}</div>
       {foot && <p className="mt-auto truncate pt-3 text-xs text-slate-500 dark:text-slate-400">{foot}</p>}
     </div>
   )
@@ -444,7 +505,7 @@ export default function Dashboard() {
     const items = []
     if (lastEval) {
       items.push({
-        key: 'eval', icon: SparklesIcon, to: '/evaluate',
+        key: 'eval', icon: SparklesSolid, tone: 'violet', to: '/evaluate',
         title: `AI evaluation scored ${lastEval.overall_score}/100`,
         detail: lastEval.title || 'Latest saved evaluation',
         when: fmtDate(lastEval.created_at, { month: 'short', day: 'numeric' }),
@@ -452,7 +513,7 @@ export default function Dashboard() {
     }
     if (myTasks.length) {
       items.push({
-        key: 'tasks', icon: ClipboardDocumentCheckIcon, to: '/prototype',
+        key: 'tasks', icon: ClipboardCheckSolid, tone: 'emerald', to: '/prototype',
         title: `${doneTasks} of ${myTasks.length} build tasks complete`,
         detail: myStartup?.business_name,
         when: '',
@@ -460,7 +521,7 @@ export default function Dashboard() {
     }
     if (nextMs) {
       items.push({
-        key: 'ms', icon: FlagIcon, to: '/prototype',
+        key: 'ms', icon: FlagSolid, tone: 'coral', to: '/prototype',
         title: `Next milestone: ${nextMs.title}`,
         detail: 'Due date',
         when: fmtDate(nextMs.date, { month: 'short', day: 'numeric' }),
@@ -468,7 +529,7 @@ export default function Dashboard() {
     }
     ;(events || []).filter((e) => e.registered).forEach((e) => {
       items.push({
-        key: `ev-${e.event_id}`, icon: CalendarDaysIcon, to: '/recommendations',
+        key: `ev-${e.event_id}`, icon: CalendarDaysSolid, tone: 'sky', to: '/recommendations',
         title: `Registered: ${e.title}`,
         detail: [e.location, e.time].filter(Boolean).join(' · '),
         when: eventWhen(e).label,
@@ -476,7 +537,7 @@ export default function Dashboard() {
     })
     if (stats?.total_funding > 0) {
       items.push({
-        key: 'fund', icon: BanknotesIcon, to: '/funding',
+        key: 'fund', icon: BanknotesSolid, tone: 'teal', to: '/funding',
         title: `${fmtMoney(stats.total_funding)} in approved funding`,
         detail: 'Across your funding requests', when: '',
       })
@@ -500,7 +561,9 @@ export default function Dashboard() {
     <div className="space-y-6 pb-8">
       {/* Page header */}
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+        <div className="flex items-center gap-4">
+          <IconBadge icon={RocketLaunchSolid} tone="teal" size="lg" />
+          <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-primary-400">Founder dashboard</p>
           <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
             {greeting}, {firstName}
@@ -510,6 +573,7 @@ export default function Dashboard() {
               ? `${myStartup.business_name?.trim()} · ${myStartup.sector || 'No sector'} · TRL ${trl}/9`
               : 'Here is where your innovation journey stands.'}
           </p>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {!hasStartup && !startupLoading && (
@@ -528,10 +592,10 @@ export default function Dashboard() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard icon={BuildingOffice2Icon} label="My startups" value={kpi.startups} hint="Registered on MInT" loading={statsLoading} to="/startups" />
-        <KpiCard icon={UserGroupIcon} label="Active mentors" value={kpi.mentors} hint="Available to match" loading={statsLoading} to="/recommendations" />
-        <KpiCard icon={BanknotesIcon} label="Funding approved" value={kpi.funding} hint="Across your requests" loading={statsLoading} to="/funding" />
-        <KpiCard icon={ArrowTrendingUpIcon} label="Approval rate" value={kpi.success} hint="Approved vs submitted" loading={statsLoading} to="/analytics" />
+        <KpiCard icon={BuildingOffice2Solid} tone="teal" label="My startups" value={kpi.startups} hint="Registered on MInT" loading={statsLoading} to="/startups" />
+        <KpiCard icon={UserGroupSolid} tone="sky" label="Active mentors" value={kpi.mentors} hint="Available to match" loading={statsLoading} to="/recommendations" />
+        <KpiCard icon={BanknotesSolid} tone="emerald" label="Funding approved" value={kpi.funding} hint="Across your requests" loading={statsLoading} to="/funding" />
+        <KpiCard icon={ArrowTrendingUpSolid} tone="coral" label="Approval rate" value={kpi.success} hint="Approved vs submitted" loading={statsLoading} to="/analytics" />
       </div>
 
       {/* Overview + events */}
@@ -540,12 +604,13 @@ export default function Dashboard() {
           {hasStartup ? (
             <>
               <CardHeader
+                icon={RocketLaunchSolid} tone="teal"
                 title="Startup overview"
                 subtitle="Build, readiness and what is due next"
                 action={<TextLink to="/prototype">Open prototype center</TextLink>}
               />
               <div className="grid flex-1 gap-3 p-5 sm:grid-cols-3">
-                <Metric label="Build progress" foot={myTasks.length ? `${doneTasks} of ${myTasks.length} tasks done` : 'No tasks yet'}>
+                <Metric icon={ClipboardCheckSolid} tone="emerald" label="Build progress" foot={myTasks.length ? `${doneTasks} of ${myTasks.length} tasks done` : 'No tasks yet'}>
                   <p className="font-heading text-2xl font-semibold tabular-nums text-slate-900 dark:text-white">
                     {myTasks.length ? donePct : EMPTY}
                     {myTasks.length > 0 && <span className="ml-0.5 text-sm font-normal text-slate-400">%</span>}
@@ -555,7 +620,7 @@ export default function Dashboard() {
                   </div>
                 </Metric>
 
-                <Metric label="Technology readiness" foot={trl > 0 ? TRL_LABELS[trl - 1] : 'Not set'}>
+                <Metric icon={BeakerSolid} tone="sky" label="Technology readiness" foot={trl > 0 ? TRL_LABELS[trl - 1] : 'Not set'}>
                   <p className="font-heading text-2xl font-semibold tabular-nums text-slate-900 dark:text-white">
                     {trl || EMPTY}
                     <span className="ml-0.5 text-sm font-normal text-slate-400">/9</span>
@@ -567,7 +632,7 @@ export default function Dashboard() {
                   </div>
                 </Metric>
 
-                <Metric label="Next milestone" foot={nextMs ? fmtDate(nextMs.date) : undefined}>
+                <Metric icon={FlagSolid} tone="coral" label="Next milestone" foot={nextMs ? fmtDate(nextMs.date) : undefined}>
                   {nextMs ? (
                     <p className="line-clamp-2 text-sm font-semibold leading-snug text-slate-900 dark:text-white">{nextMs.title}</p>
                   ) : (
@@ -631,6 +696,7 @@ export default function Dashboard() {
 
         <Card className="flex flex-col">
           <CardHeader
+            icon={CalendarDaysSolid} tone="coral"
             title="Upcoming events"
             subtitle="Workshops and meetings you can join"
             action={<TextLink to="/recommendations">See all</TextLink>}
@@ -646,13 +712,14 @@ export default function Dashboard() {
               {events.map((ev, i) => {
                 const { label, hot } = eventWhen(ev)
                 const tone = EVENT_TONES[i % EVENT_TONES.length]
+                const EventIcon = eventIcon(ev)
                 return (
                   <li key={ev.event_id} className="flex flex-1 items-center gap-3 py-3">
                     <span
                       className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${tone.bg} ${tone.fg}`}
                       style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.18) 1px, transparent 1px)', backgroundSize: '8px 8px' }}
                     >
-                      <tone.Icon className="h-5 w-5" />
+                      <EventIcon className="h-5 w-5" />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[13px] font-semibold text-slate-900 dark:text-white">{ev.title}</span>
@@ -682,6 +749,7 @@ export default function Dashboard() {
       <div className="grid gap-5 xl:grid-cols-[1fr_280px_300px]">
         <Card className="flex flex-col">
           <CardHeader
+            icon={ChartBarSolid} tone="sky"
             title="Funding applications"
             subtitle="Submitted and approved per month"
             action={
@@ -726,13 +794,16 @@ export default function Dashboard() {
               <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: CHART.approved }} />Approved</span>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Link to="/idea-submission" className="rounded-lg bg-primary-600 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-primary-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2">
+              <Link to="/idea-submission" className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-primary-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2">
+                <LightBulbSolid className="h-4 w-4" />
                 Submit idea
               </Link>
-              <Link to="/recommendations" className="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 dark:border-primary-600 dark:bg-primary-800 dark:text-slate-100">
+              <Link to="/recommendations" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 dark:border-primary-600 dark:bg-primary-800 dark:text-slate-100">
+                <UserGroupSolid className="h-4 w-4" />
                 Find mentor
               </Link>
-              <Link to="/funding" className="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 dark:border-primary-600 dark:bg-primary-800 dark:text-slate-100">
+              <Link to="/funding" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 dark:border-primary-600 dark:bg-primary-800 dark:text-slate-100">
+                <BanknotesSolid className="h-4 w-4" />
                 Apply for funding
               </Link>
             </div>
@@ -782,7 +853,7 @@ export default function Dashboard() {
 
         {/* Sector donut */}
         <Card className="flex flex-col">
-          <CardHeader title="Startups by sector" subtitle="Your registered startups" />
+          <CardHeader icon={ChartPieSolid} tone="violet" title="Startups by sector" subtitle="Your registered startups" />
           {statsLoading ? (
             <div className="p-5"><Skeleton className="mx-auto h-40 w-40 !rounded-full" /></div>
           ) : donutData.length === 0 ? (
@@ -824,7 +895,7 @@ export default function Dashboard() {
       {/* Trend + activity */}
       <div className="grid gap-5 xl:grid-cols-[1fr_400px]">
         <Card className="flex flex-col">
-          <CardHeader title="Cumulative applications" subtitle="Running total of funding requests submitted and approved" />
+          <CardHeader icon={ArrowTrendingUpSolid} tone="emerald" title="Cumulative applications" subtitle="Running total of funding requests submitted and approved" />
           <div className="relative min-h-[260px] flex-1 px-3 pb-4 pt-4">
             {statsLoading ? (
               <Skeleton className="mx-2 h-[220px]" />
@@ -852,7 +923,7 @@ export default function Dashboard() {
         </Card>
 
         <Card className="flex flex-col">
-          <CardHeader title="Recent activity" subtitle="Drawn from your startup and funding records" action={<TextLink to="/analytics">Analytics</TextLink>} />
+          <CardHeader icon={BoltSolid} tone="amber" title="Recent activity" subtitle="Drawn from your startup and funding records" action={<TextLink to="/analytics">Analytics</TextLink>} />
           <div className="flex-1 px-5 pt-4">
             {startupLoading && activity.length === 0 ? (
               <div className="space-y-4">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-10" />)}</div>
@@ -862,12 +933,10 @@ export default function Dashboard() {
               </p>
             ) : (
               <ol className="relative space-y-4 before:absolute before:bottom-2 before:left-[15px] before:top-2 before:w-px before:bg-slate-200 dark:before:bg-primary-600">
-                {activity.map(({ key, icon: Icon, title, detail, when, to }) => (
+                {activity.map(({ key, icon, tone, title, detail, when, to }) => (
                   <li key={key} className="relative">
                     <Link to={to} className="group flex items-start gap-3 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400">
-                      <span className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-600 ring-4 ring-white dark:bg-primary-700 dark:text-primary-100 dark:ring-primary-800">
-                        <Icon className="h-4 w-4" />
-                      </span>
+                      <IconBadge icon={icon} tone={tone} size="sm" className="relative z-10 !rounded-full ring-4 ring-white dark:ring-primary-800" />
                       <span className="min-w-0 flex-1">
                         <span className="flex items-baseline justify-between gap-2">
                           <span className="truncate text-[13px] font-semibold text-slate-900 group-hover:text-primary-500 dark:text-white">{title}</span>
