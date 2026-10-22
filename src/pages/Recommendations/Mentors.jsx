@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { MagnifyingGlassIcon, PaperAirplaneIcon, CheckIcon, XMarkIcon, CalendarDaysIcon, ChevronLeftIcon, ChevronRightIcon, VideoCameraIcon } from '@heroicons/react/24/outline'
+import { MagnifyingGlassIcon, PaperAirplaneIcon, CheckIcon, XMarkIcon, ChevronLeftIcon, ChevronRightIcon, VideoCameraIcon } from '@heroicons/react/24/outline'
 import { PageHeader, LoadingBlock, ErrorNotice } from '../../components/ui.jsx'
 import { useApiData } from '../../services/useApiData.js'
 import { sessionAPI, mentorAPI, messageAPI, startupAPI } from '../../services/api.js'
@@ -14,36 +14,37 @@ function daysInMonth(year, month) {
 
 const industries = ['Technology', 'Healthcare', 'Finance', 'Sustainability']
 const skills = ['Product Strategy', 'Fundraising', 'Marketing', 'Engineering']
-const countries = [
-  { code: 'US', name: 'USA', flag: '🇺🇸' },
-  { code: 'UK', name: 'UK', flag: '🇬🇧' },
-  { code: 'DE', name: 'Germany', flag: '🇩🇪' },
-  { code: 'CA', name: 'Canada', flag: '🇨🇦' },
-]
-const companyLogos = ['bg-primary-700', 'bg-primary-400', 'bg-accent-500', 'bg-primary-300']
+const experienceBuckets = ['0-3 years', '4-7 years', '8+ years']
 
-const days = Array.from({ length: 31 }, (_, i) => i + 1)
-const highlighted = [10, 11, 14, 15, 20]
+const asText = (v) => (Array.isArray(v) ? v.join(' ') : (v || ''))
+const getId = (m) => m.mentor_id || m.id
+const getName = (m) => m.full_name || m.name || 'Unnamed Mentor'
+const getInitials = (name) =>
+  String(name).trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join('').toUpperCase()
 
 export default function Mentors() {
   const { data, loading, isFallback } = useApiData('/api/mentors/', sampleMentors)
+  const { user } = useAuth()
+
   const [search, setSearch] = useState('')
-  const [requestingId, setRequestingId] = useState(null)
   const [experience, setExperience] = useState([])
-  const [experienceRange, setExperienceRange] = useState(50)
   const [selectedIndustries, setSelectedIndustries] = useState([])
-  const [selectedSkills, setSelectedSkills] = useState(['Engineering'])
-  const [country, setCountry] = useState(countries[0])
+  const [selectedSkills, setSelectedSkills] = useState([])
+  const [sortByMatch, setSortByMatch] = useState(false)
+
+  const [requestingId, setRequestingId] = useState(null)
+  const [requestedIds, setRequestedIds] = useState([])
+
   const [activeMentor, setActiveMentor] = useState(null)
   const [chatThread, setChatThread] = useState([])
   const [chatInput, setChatInput] = useState('')
   const [chatSending, setChatSending] = useState(false)
   const [chatLoading, setChatLoading] = useState(false)
+
   const [profileModal, setProfileModal] = useState(null)
   const [profileDetail, setProfileDetail] = useState(null)
   const [profileLoading, setProfileLoading] = useState(false)
 
-  const { user } = useAuth()
   const [matchById, setMatchById] = useState({})
   const [mySessionRequests, setMySessionRequests] = useState([])
   const today = new Date()
@@ -83,6 +84,7 @@ export default function Mentors() {
     if (m > 11) { m = 0; y += 1 }
     setCalendarMonth(m)
     setCalendarYear(y)
+    setSelectedDay(null)
   }
 
   const highlightedDays = mySessionRequests
@@ -91,9 +93,11 @@ export default function Mentors() {
     .map((d) => d.getDate())
 
   const calendarDays = Array.from({ length: daysInMonth(calendarYear, calendarMonth) }, (_, i) => i + 1)
+  // Blank cells so day 1 lands under the correct weekday column
+  const leadingBlanks = new Date(calendarYear, calendarMonth, 1).getDay()
 
   const mentorNameById = Object.fromEntries(
-    (data || []).map((m) => [m.mentor_id || m.id, m.full_name || m.name || 'Unknown mentor'])
+    (data || []).map((m) => [getId(m), getName(m)])
   )
   const requestsOnSelectedDay = selectedDay
     ? mySessionRequests.filter((r) => {
@@ -107,7 +111,7 @@ export default function Mentors() {
       toast.error('Select a mentor to message first, then start a video meeting.')
       return
     }
-    const mentorId = activeMentor.mentor_id || activeMentor.id
+    const mentorId = getId(activeMentor)
     const userId = user?.id || 'guest'
     const roomName = `mint-${mentorId}-${userId}`.replace(/[^a-zA-Z0-9-]/g, '')
     window.open(`https://meet.jit.si/${roomName}`, '_blank', 'noopener,noreferrer')
@@ -116,30 +120,46 @@ export default function Mentors() {
   const toggle = (list, setList, value) =>
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value])
 
-  const asText = (v) => Array.isArray(v) ? v.join(' ') : (v || '')
+  const clearFilters = () => {
+    setSearch('')
+    setExperience([])
+    setSelectedIndustries([])
+    setSelectedSkills([])
+  }
 
-  const filteredMentors = data.filter((m) => {
-    const name = asText(m.full_name || m.name).toLowerCase()
-    const expertise = asText(m.expertise_areas || m.title).toLowerCase()
-    if (search && !name.includes(search.toLowerCase()) && !expertise.includes(search.toLowerCase())) return false
-    if (selectedIndustries.length > 0 && !selectedIndustries.some((i) => (m.preferred_sectors || []).includes(i))) return false
-    if (selectedSkills.length > 0 && !selectedSkills.some((s) => expertise.includes(s.toLowerCase()))) return false
-    if (experience.length > 0) {
-      const years = m.years_experience ?? m.years ?? 0
-      const bucket = years <= 3 ? '0-3 years' : years <= 7 ? '4-7 years' : '8+ years'
-      if (!experience.includes(bucket)) return false
-    }
-    return true
-  })
+  const filteredMentors = (data || [])
+    .filter((m) => {
+      const name = asText(m.full_name || m.name).toLowerCase()
+      const expertise = asText(m.expertise_areas || m.title).toLowerCase()
+      if (search && !name.includes(search.toLowerCase()) && !expertise.includes(search.toLowerCase())) return false
+      if (selectedIndustries.length > 0 && !selectedIndustries.some((i) => (m.preferred_sectors || []).includes(i))) return false
+      if (selectedSkills.length > 0 && !selectedSkills.some((s) => expertise.includes(s.toLowerCase()))) return false
+      if (experience.length > 0) {
+        const years = m.years_experience ?? m.years ?? 0
+        const bucket = years <= 3 ? '0-3 years' : years <= 7 ? '4-7 years' : '8+ years'
+        if (!experience.includes(bucket)) return false
+      }
+      return true
+    })
+    .sort((a, b) =>
+      sortByMatch ? (matchById[getId(b)] ?? -1) - (matchById[getId(a)] ?? -1) : 0
+    )
 
   const handleRequestSession = async (mentor) => {
-    const id = mentor.mentor_id || mentor.id
+    const id = getId(mentor)
     setRequestingId(id)
     try {
       await sessionAPI.request(id)
+      setRequestedIds((prev) => [...prev, id])
       toast.success('Session requested')
+      // refresh calendar data
+      try {
+        const { data: allRequestsRes } = await sessionAPI.all()
+        setMySessionRequests((allRequestsRes && allRequestsRes.data) ? allRequestsRes.data : [])
+      } catch (err) { /* best-effort */ }
     } catch (err) {
       if (err?.response?.status === 409) {
+        setRequestedIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
         toast('Already requested')
       } else {
         toast.error('Could not request session')
@@ -154,8 +174,7 @@ export default function Mentors() {
     setChatThread([])
     setChatLoading(true)
     try {
-      const id = mentor.mentor_id || mentor.id
-      const res = await messageAPI.getThread(id)
+      const res = await messageAPI.getThread(getId(mentor))
       const thread = (res.data && res.data.data) || []
       setChatThread(Array.isArray(thread) ? thread : [])
     } catch (err) {
@@ -171,8 +190,7 @@ export default function Mentors() {
     if (!text || !activeMentor || chatSending) return
     setChatSending(true)
     try {
-      const id = activeMentor.mentor_id || activeMentor.id
-      await messageAPI.send(id, text)
+      await messageAPI.send(getId(activeMentor), text)
       setChatThread((prev) => [...prev, { from: 'me', text }])
       setChatInput('')
     } catch (err) {
@@ -187,8 +205,7 @@ export default function Mentors() {
     setProfileDetail(null)
     setProfileLoading(true)
     try {
-      const id = mentor.mentor_id || mentor.id
-      const res = await mentorAPI.getById(id)
+      const res = await mentorAPI.getById(getId(mentor))
       const detail = (res.data && res.data.data) || res.data
       setProfileDetail(detail)
     } catch (err) {
@@ -197,6 +214,9 @@ export default function Mentors() {
       setProfileLoading(false)
     }
   }
+
+  const requestButtonLabel = (id) =>
+    requestingId === id ? 'Requesting...' : requestedIds.includes(id) ? 'Requested' : 'Request Session'
 
   return (
     <div>
@@ -213,16 +233,8 @@ export default function Mentors() {
 
           <div>
             <p className="text-sm font-medium text-ink dark:text-white mb-2">Experience</p>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={experienceRange}
-              onChange={(e) => setExperienceRange(Number(e.target.value))}
-              className="w-full accent-primary mb-2"
-            />
             <div className="space-y-1.5">
-              {['0-3 years', '4-7 years', '8+ years'].map((e) => (
+              {experienceBuckets.map((e) => (
                 <label key={e} className="flex items-center gap-2 text-sm text-slate-500">
                   <input type="checkbox" checked={experience.includes(e)} onChange={() => toggle(experience, setExperience, e)} className="accent-primary" />
                   {e}
@@ -239,24 +251,6 @@ export default function Mentors() {
                   <input type="checkbox" checked={selectedIndustries.includes(i)} onChange={() => toggle(selectedIndustries, setSelectedIndustries, i)} className="accent-primary" />
                   {i}
                 </label>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="text-sm font-medium text-ink dark:text-white mb-2">Country</p>
-            <div className="input text-sm flex items-center gap-2 mb-2 cursor-default">
-              <span>{country.flag}</span> {country.name}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {countries.filter((c) => c.code !== country.code).map((c) => (
-                <button
-                  key={c.code}
-                  onClick={() => setCountry(c)}
-                  className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-300 hover:text-primary"
-                >
-                  <span>{c.flag}</span> {c.name}
-                </button>
               ))}
             </div>
           </div>
@@ -279,15 +273,12 @@ export default function Mentors() {
             </div>
           </div>
 
-          <button
-            onClick={() => {
-              setSearch('')
-              setExperience([])
-              setSelectedIndustries([])
-              setSelectedSkills([])
-            }}
-            className="btn-outline w-full text-sm"
-          >
+          <label className="flex items-center gap-2 text-sm text-slate-500">
+            <input type="checkbox" checked={sortByMatch} onChange={() => setSortByMatch(!sortByMatch)} className="accent-primary" />
+            Sort by best match
+          </label>
+
+          <button onClick={clearFilters} className="btn-outline w-full text-sm">
             Clear Filters
           </button>
         </aside>
@@ -295,68 +286,69 @@ export default function Mentors() {
         {/* Mentor grid */}
         {loading ? (
           <LoadingBlock />
+        ) : filteredMentors.length === 0 ? (
+          <div className="card p-8 text-center content-start h-fit">
+            <p className="text-sm font-medium text-ink dark:text-white mb-1">No mentors match your filters</p>
+            <p className="text-xs text-slate-400 mb-4">Try removing a filter or searching a different name.</p>
+            <button onClick={clearFilters} className="btn-outline text-sm">Clear Filters</button>
+          </div>
         ) : (
           <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4 content-start">
             {filteredMentors.map((m) => {
-              const name = m.full_name || m.name || 'Unnamed Mentor'
-              const initials = name.split(' ').map((p) => p[0]).slice(0, 2).join('')
+              const id = getId(m)
+              const name = getName(m)
               const years = m.years_experience ?? m.years
               const expertise = asText(m.expertise_areas || m.title)
-              const match = matchById[m.mentor_id || m.id]
+              const match = matchById[id]
+              const requested = requestedIds.includes(id)
               return (
-              <div key={m.mentor_id || m.id} className="card p-5">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="h-11 w-11 rounded-full bg-primary text-white flex items-center justify-center font-semibold shrink-0">
-                    {initials}
+                <div key={id} className="card p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="h-11 w-11 rounded-full bg-primary text-white flex items-center justify-center font-semibold shrink-0">
+                      {getInitials(name)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm text-ink dark:text-white">{name}</p>
+                      {expertise && <p className="text-xs text-slate-400">{expertise}</p>}
+                      {years != null && <p className="text-xs text-slate-500">{years}+ years experience</p>}
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium text-sm text-ink dark:text-white">{name}</p>
-                    {expertise && <p className="text-xs text-slate-400">{expertise}</p>}
-                    {years != null && <p className="text-xs text-slate-500">{years}+ Years Experience</p>}
-                  </div>
-                </div>
-                {m.rating != null && <p className="text-xs text-amber-500 mb-3">★ {m.rating}</p>}
-                <p className="text-xs text-slate-400 mb-1.5">Company Logos</p>
-                <div className="flex gap-1.5 mb-3">
-                  {companyLogos.map((c, i) => (
-                    <span key={i} className={`h-5 w-5 rounded-full ${c}`} />
-                  ))}
-                </div>
-                <div className="flex items-center justify-between gap-3 mb-3">
-                  <div>
-                    <p className="text-xs text-slate-400 mb-1">Availability</p>
-                    {m.availability === 'available' ? (
-                      <span className="badge bg-emerald-100 text-emerald-700">Available This Week</span>
-                    ) : m.availability ? (
-                      <span className="badge bg-accent-100 text-accent-700">Next Availability: {m.nextDate}</span>
-                    ) : (
-                      <span className="badge bg-slate-100 text-slate-500 dark:bg-primary-700">Contact to check</span>
+                  {m.rating != null && <p className="text-xs text-amber-500 mb-3">★ {m.rating}</p>}
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div>
+                      <p className="text-xs text-slate-400 mb-1">Availability</p>
+                      {m.availability === 'available' ? (
+                        <span className="badge bg-emerald-100 text-emerald-700">Available this week</span>
+                      ) : m.availability && m.nextDate ? (
+                        <span className="badge bg-accent-100 text-accent-700">Next availability: {m.nextDate}</span>
+                      ) : (
+                        <span className="badge bg-slate-100 text-slate-500 dark:bg-primary-700">Contact to check</span>
+                      )}
+                    </div>
+                    {match != null && (
+                      <div className="h-12 w-12 rounded-full border-4 border-primary-300 text-primary flex flex-col items-center justify-center text-[10px] font-semibold shrink-0">
+                        {match}% <span className="text-[8px] font-normal">Match</span>
+                      </div>
                     )}
                   </div>
-                  {match != null && (
-                    <div className="h-12 w-12 rounded-full border-4 border-primary-300 text-primary flex flex-col items-center justify-center text-[10px] font-semibold shrink-0">
-                      {match}% <span className="text-[8px] font-normal">Match</span>
-                    </div>
-                  )}
+                  <div className="flex gap-2 flex-wrap">
+                    <button onClick={() => openProfile(m)} className="btn-outline flex-1 text-xs">View Profile</button>
+                    <button onClick={() => openChat(m)} className="btn-outline flex-1 text-xs">Message</button>
+                    <button
+                      onClick={() => handleRequestSession(m)}
+                      disabled={requestingId === id || requested}
+                      className="btn-primary flex-1 text-xs disabled:opacity-50"
+                    >
+                      {requestButtonLabel(id)}
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-2 flex-wrap">
-                  <button onClick={() => openProfile(m)} className="btn-outline flex-1 text-xs">View Profile</button>
-                  <button onClick={() => openChat(m)} className="btn-outline flex-1 text-xs">Message</button>
-                  <button
-                    onClick={() => handleRequestSession(m)}
-                    disabled={requestingId === (m.mentor_id || m.id)}
-                    className="btn-primary flex-1 text-xs disabled:opacity-50"
-                  >
-                    {requestingId === (m.mentor_id || m.id) ? 'Requesting...' : 'Request Session'}
-                  </button>
-                </div>
-              </div>
               )
             })}
           </div>
         )}
 
-        {/* Chat */}
+        {/* Chat + calendar */}
         <aside className="space-y-4">
           <div className="card p-4">
             {!activeMentor ? (
@@ -365,9 +357,9 @@ export default function Mentors() {
               <>
                 <div className="flex items-center gap-2 mb-3">
                   <div className="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center text-xs font-semibold shrink-0">
-                    {asText(activeMentor.full_name || activeMentor.name).split(' ').map((p) => p[0]).slice(0, 2).join('')}
+                    {getInitials(getName(activeMentor))}
                   </div>
-                  <p className="font-medium text-sm text-ink dark:text-white truncate">{activeMentor.full_name || activeMentor.name}</p>
+                  <p className="font-medium text-sm text-ink dark:text-white truncate">{getName(activeMentor)}</p>
                 </div>
                 <div className="space-y-2 max-h-40 overflow-y-auto mb-2">
                   {chatLoading && <p className="text-xs text-slate-400">Loading...</p>}
@@ -390,14 +382,15 @@ export default function Mentors() {
             <div className="flex items-center justify-between mb-3">
               <p className="font-medium text-sm text-ink dark:text-white">{monthNames[calendarMonth]} {calendarYear}</p>
               <div className="flex gap-1">
-                <button onClick={() => changeMonth(-1)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-primary-700"><ChevronLeftIcon className="h-4 w-4 text-slate-400" /></button>
-                <button onClick={() => changeMonth(1)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-primary-700"><ChevronRightIcon className="h-4 w-4 text-slate-400" /></button>
+                <button onClick={() => changeMonth(-1)} aria-label="Previous month" className="p-1 rounded hover:bg-slate-100 dark:hover:bg-primary-700"><ChevronLeftIcon className="h-4 w-4 text-slate-400" /></button>
+                <button onClick={() => changeMonth(1)} aria-label="Next month" className="p-1 rounded hover:bg-slate-100 dark:hover:bg-primary-700"><ChevronRightIcon className="h-4 w-4 text-slate-400" /></button>
               </div>
             </div>
             <div className="grid grid-cols-7 gap-1 text-center text-[11px] text-slate-400 mb-1">
               {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => <span key={d}>{d}</span>)}
             </div>
             <div className="grid grid-cols-7 gap-1 text-center text-xs">
+              {Array.from({ length: leadingBlanks }, (_, i) => <span key={`blank-${i}`} />)}
               {calendarDays.map((d) => {
                 const isHighlighted = highlightedDays.includes(d)
                 return (
@@ -447,12 +440,13 @@ export default function Mentors() {
           </button>
         </aside>
       </div>
+
       {profileModal && (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 p-4" onClick={() => setProfileModal(null)}>
           <div className="card w-full max-w-md p-5 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-heading font-semibold text-lg text-ink dark:text-white">{profileModal.full_name || profileModal.name}</h3>
-              <button onClick={() => setProfileModal(null)} className="text-slate-400 hover:text-slate-600">
+              <h3 className="font-heading font-semibold text-lg text-ink dark:text-white">{getName(profileModal)}</h3>
+              <button onClick={() => setProfileModal(null)} aria-label="Close" className="text-slate-400 hover:text-slate-600">
                 <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
@@ -472,6 +466,21 @@ export default function Mentors() {
                     ))}
                   </div>
                 )}
+                <div className="flex gap-2 mt-5">
+                  <button
+                    onClick={() => { const m = profileModal; setProfileModal(null); openChat(m) }}
+                    className="btn-outline flex-1 text-sm"
+                  >
+                    Message
+                  </button>
+                  <button
+                    onClick={() => handleRequestSession(profileModal)}
+                    disabled={requestingId === getId(profileModal) || requestedIds.includes(getId(profileModal))}
+                    className="btn-primary flex-1 text-sm disabled:opacity-50"
+                  >
+                    {requestButtonLabel(getId(profileModal))}
+                  </button>
+                </div>
               </>
             )}
           </div>
