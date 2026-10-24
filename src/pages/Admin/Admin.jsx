@@ -19,6 +19,7 @@ import {
   ShieldCheckIcon,
 } from '@heroicons/react/24/outline'
 import { PageHeader, LoadingBlock } from '../../components/ui.jsx'
+import IdeaReviewModal from './IdeaReviewModal.jsx'
 import {
   userAPI,
   auditAPI,
@@ -40,6 +41,7 @@ const statusColor = {
   open: 'bg-emerald-100 text-emerald-700',
   closed: 'bg-slate-100 text-slate-600',
   evaluated: 'bg-primary/10 text-primary',
+  revision_requested: 'bg-amber-100 text-amber-700',
   new: 'bg-slate-100 text-slate-600',
 }
 
@@ -75,6 +77,7 @@ export default function Admin() {
   const [codeForm, setCodeForm] = useState({ prefix: "MINT", count: 1 })
   const [sendEmail, setSendEmail] = useState('')
   const [showSendEmail, setShowSendEmail] = useState(false)
+  const [reviewIdea, setReviewIdea] = useState(null)
 
     
   const [grantForm, setGrantForm] = useState({ grant_name: '', program: '', max_amount: '', min_amount: '', deadline: '', sectors: '' })
@@ -836,8 +839,8 @@ export default function Admin() {
                 <div className="flex flex-wrap gap-2 mt-3">
                   {idea.status !== 'approved' && idea.status !== 'rejected' && (
                     <>
-                      <button onClick={() => handleApproveIdea(idea.id || idea._id)} className={approveBtn}><CheckIcon className="h-4 w-4" /> Approve</button>
-                      <button onClick={() => handleRejectIdea(idea.id || idea._id)} className={rejectBtn}><XMarkIcon className="h-4 w-4" /> Reject</button>
+                      <button onClick={() => setReviewIdea(idea)} className={approveBtn}><CheckIcon className="h-4 w-4" /> Review</button>
+                      
                     </>
                   )}
                   {idea.status === 'approved' && <span className="badge bg-emerald-100 text-emerald-700">Approved</span>}
@@ -854,6 +857,14 @@ export default function Admin() {
             {ideas.length === 0 && <Empty text="No ideas submitted yet." />}
           </div>
         </section>
+      )}
+
+      {reviewIdea && (
+        <IdeaReviewModal
+          idea={reviewIdea}
+          onClose={() => setReviewIdea(null)}
+          onDone={() => { setReviewIdea(null); loadAll() }}
+        />
       )}
 
       {/* MENTORS & EVENTS */}

@@ -31,3 +31,5 @@ yarn-error.log*
 *.bak-*
 *.before-*
 *.pre-*
+.env.local
+*.bak

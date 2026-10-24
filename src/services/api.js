@@ -71,6 +71,7 @@ export const ideaAPI = {
   getById: (id) => api.get(`/api/ideas/${id}`),
   update: (id, data) => api.put(`/api/ideas/${id}`, data),
   evaluate: (id) => api.post(`/api/ideas/${id}/evaluate`),
+  review: (id, data) => api.post(`/api/ideas/${id}/review`, data),
   delete: (id) => api.delete(`/api/ideas/${id}`),
 }
 
