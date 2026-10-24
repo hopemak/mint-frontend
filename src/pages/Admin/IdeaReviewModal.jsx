@@ -42,6 +42,7 @@ export default function IdeaReviewModal({ idea, onClose, onDone }) {
   const [comment, setComment] = useState('')
   const [override, setOverride] = useState('')
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   const allScored = CRITERIA.every((c) => scores[c.key])
   const total = allScored
@@ -61,8 +62,16 @@ export default function IdeaReviewModal({ idea, onClose, onDone }) {
     (decision !== 'rejected' || reasonCode) &&
     (!needsOverride || override.trim().length >= MIN_TEXT)
 
+  const missing = []
+  if (!allScored) missing.push('score all six criteria (' + CRITERIA.filter((c) => !scores[c.key]).length + ' left)')
+  if (allScored && !decision) missing.push('choose a decision')
+  if (decision === 'rejected' && !reasonCode) missing.push('select a reject reason')
+  if (comment.trim().length < MIN_TEXT) missing.push('written reason needs ' + (MIN_TEXT - comment.trim().length) + ' more characters')
+  if (needsOverride && override.trim().length < MIN_TEXT) missing.push('justification needs ' + (MIN_TEXT - override.trim().length) + ' more characters')
+
   const submit = async () => {
     setSaving(true)
+    setError('')
     try {
       await ideaAPI.review(idea.id || idea._id, {
         scores,
@@ -74,7 +83,11 @@ export default function IdeaReviewModal({ idea, onClose, onDone }) {
       toast.success('Decision saved')
       onDone()
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Could not save decision')
+      const status = err.response?.status
+      const msg = err.response?.data?.error || err.message || 'Could not save decision'
+      console.error('Review failed:', status, err.response?.data || err)
+      setError((status ? '[' + status + '] ' : '') + msg)
+      toast.error(msg)
     } finally {
       setSaving(false)
     }
@@ -180,6 +193,13 @@ export default function IdeaReviewModal({ idea, onClose, onDone }) {
               {override.trim().length}/{MIN_TEXT} characters minimum
             </p>
           </div>
+        )}
+
+        {missing.length > 0 && (
+          <p className="mt-6 text-xs text-amber-700">Still needed: {missing.join('; ')}.</p>
+        )}
+        {error && (
+          <p className="mt-3 rounded-lg bg-red-50 text-red-600 text-sm p-3">{error}</p>
         )}
 
         <div className="mt-6 flex gap-2 justify-end">
