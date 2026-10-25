@@ -1,9 +1,36 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
+import { CameraIcon } from '@heroicons/react/24/outline'
 import { PageHeader, LoadingBlock } from '../../components/ui.jsx'
 import { accountAPI } from '../../services/api.js'
+import { useAuth } from '../../context/AuthContext.jsx'
 
 const money = (n) => '$' + Number(n || 0).toLocaleString()
+
+const PHOTO_MAX_BYTES = 5 * 1024 * 1024
+
+// Crop the chosen picture to a centred square and shrink it to 256px, so the saved photo is
+// small (usually 15-40 KB) no matter how large the original was.
+function fileToAvatar(file, size = 256) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      const s = Math.min(img.width, img.height)
+      const canvas = document.createElement('canvas')
+      canvas.width = size
+      canvas.height = size
+      canvas.getContext('2d').drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, size, size)
+      URL.revokeObjectURL(url)
+      resolve(canvas.toDataURL('image/jpeg', 0.85))
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('That file could not be read as a picture. Try a JPG or PNG.'))
+    }
+    img.src = url
+  })
+}
 
 export default function Profile() {
   const [data, setData] = useState(null)
@@ -11,6 +38,9 @@ export default function Profile() {
   const [pw, setPw] = useState({ current_password: '', new_password: '', confirm: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [photoBusy, setPhotoBusy] = useState(false)
+  const fileRef = useRef(null)
+  const { updateUser } = useAuth()
 
   const fill = (u) => setForm({
     full_name: u.full_name || '', phone: u.phone || '', organization: u.organization || '',
@@ -39,14 +69,39 @@ export default function Profile() {
       const payload = { ...form, expertise: form.expertise.split(',').map((s) => s.trim()).filter(Boolean) }
       const r = await accountAPI.update(payload)
       setData({ ...data, user: r.data.user })
-      try {
-        const stored = JSON.parse(localStorage.getItem('mint_user') || '{}')
-        localStorage.setItem('mint_user', JSON.stringify({ ...stored, full_name: r.data.user.full_name }))
-      } catch { /* ignore */ }
+      updateUser({ full_name: r.data.user.full_name })
       toast.success('Profile saved')
     } catch (err) {
       toast.error(err.response?.data?.error || 'Could not save')
     } finally { setSaving(false) }
+  }
+
+  const savePhoto = async (profile_image, message) => {
+    setPhotoBusy(true)
+    try {
+      const r = await accountAPI.update({ profile_image })
+      setData((d) => ({ ...d, user: { ...d.user, ...r.data.user } }))
+      updateUser({ profile_image: r.data.user.profile_image || '' })
+      toast.success(message)
+    } catch (err) {
+      const msg = err.response?.data?.error
+      toast.error(msg === 'Nothing to update' ? 'Photo upload is not enabled on the server yet.' : msg || 'Could not update your photo')
+    } finally {
+      setPhotoBusy(false)
+    }
+  }
+
+  const onPhoto = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // lets the same file be chosen again later
+    if (!file) return
+    if (!file.type.startsWith('image/')) return toast.error('Please choose an image file (JPG or PNG).')
+    if (file.size > PHOTO_MAX_BYTES) return toast.error('That picture is larger than 5 MB.')
+    try {
+      await savePhoto(await fileToAvatar(file), 'Profile photo updated')
+    } catch (err) {
+      toast.error(err.message)
+    }
   }
 
   const changePw = async (e) => {
@@ -71,7 +126,23 @@ export default function Profile() {
       <PageHeader eyebrow="Account" title="Profile" />
 
       <div className="rounded-2xl bg-primary-800 text-white p-5 sm:p-6 flex flex-wrap items-center gap-4">
-        <div className="h-20 w-20 rounded-full bg-white/15 flex items-center justify-center text-2xl font-heading font-bold">{initials}</div>
+        <div className="relative shrink-0">
+          {user.profile_image ? (
+            <img src={user.profile_image} alt="Your profile photo" className={`h-20 w-20 rounded-full object-cover ring-2 ring-white/30 ${photoBusy ? 'opacity-50' : ''}`} />
+          ) : (
+            <div className={`h-20 w-20 rounded-full bg-white/15 flex items-center justify-center text-2xl font-heading font-bold ${photoBusy ? 'opacity-50' : ''}`}>{initials}</div>
+          )}
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={photoBusy}
+            aria-label={user.profile_image ? 'Change profile photo' : 'Upload profile photo'}
+            className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-accent text-primary-800 shadow flex items-center justify-center hover:bg-accent-500 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:opacity-60"
+          >
+            <CameraIcon className="h-4 w-4" />
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPhoto} />
+        </div>
         <div className="min-w-0 flex-1">
           <h2 className="font-heading text-xl font-semibold truncate">{user.full_name || 'Unnamed'}</h2>
           <p className="text-sm text-slate-300 truncate">{user.email}</p>
@@ -79,6 +150,16 @@ export default function Profile() {
             <span className="px-2 py-0.5 rounded-full bg-white/10 capitalize">{user.role}</span>
             <span className="px-2 py-0.5 rounded-full bg-white/10 capitalize">{user.status}</span>
             {user.created_at && <span className="px-2 py-0.5 rounded-full bg-white/10">Member since {new Date(user.created_at).toLocaleDateString()}</span>}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs">
+            <button type="button" onClick={() => fileRef.current?.click()} disabled={photoBusy} className="underline underline-offset-2 text-slate-200 hover:text-white disabled:opacity-60">
+              {photoBusy ? 'Saving photo...' : user.profile_image ? 'Change photo' : 'Upload photo'}
+            </button>
+            {user.profile_image && !photoBusy && (
+              <button type="button" onClick={() => savePhoto('', 'Profile photo removed')} className="underline underline-offset-2 text-slate-300 hover:text-white">
+                Remove photo
+              </button>
+            )}
           </div>
         </div>
         <div className="w-full sm:w-52">

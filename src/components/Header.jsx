@@ -45,9 +45,13 @@ export default function Header({ onMenuClick }) {
             onClick={() => setMenuOpen((o) => !o)}
             className="flex items-center gap-2 pl-2"
           >
-            <div className="h-9 w-9 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
-              {(user?.full_name || user?.name || 'IL').split(' ').map((p) => p[0]).slice(0, 2).join('')}
-            </div>
+            {user?.profile_image ? (
+              <img src={user.profile_image} alt="" className="h-9 w-9 rounded-full object-cover" />
+            ) : (
+              <div className="h-9 w-9 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
+                {(user?.full_name || user?.name || 'IL').split(' ').map((p) => p[0]).slice(0, 2).join('')}
+              </div>
+            )}
             <ChevronDownIcon className="h-4 w-4 text-slate-400 hidden sm:block" />
           </button>
           {menuOpen && (

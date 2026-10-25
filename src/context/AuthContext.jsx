@@ -21,6 +21,35 @@ export function AuthProvider({ children }) {
     setLoading(false)
   }, [])
 
+  // Merge fresh profile fields (name, photo...) into the signed-in user and keep the
+  // stored copy in sync, so the header updates immediately without signing in again.
+  const updateUser = (patch) => {
+    setUser((prev) => {
+      const next = { ...(prev || {}), ...patch }
+      try { localStorage.setItem('mint_user', JSON.stringify(next)) } catch { /* storage blocked or full */ }
+      return next
+    })
+  }
+
+  // The login response does not include the profile photo, so fetch it once per sign-in.
+  // This is what makes the photo show up on a new device or after clearing the browser.
+  useEffect(() => {
+    if (!user?.id) return undefined
+    let live = true
+    api.get('/api/account/me')
+      .then((r) => {
+        if (!live) return
+        const u = r.data?.user || {}
+        const patch = {}
+        if ((u.profile_image || '') !== (user.profile_image || '')) patch.profile_image = u.profile_image || ''
+        if (u.full_name && u.full_name !== user.full_name) patch.full_name = u.full_name
+        if (Object.keys(patch).length) updateUser(patch)
+      })
+      .catch(() => { /* offline or signed out: keep what we have */ })
+    return () => { live = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
+
   const login = async (email, password) => {
     try {
       const response = await api.post('/api/auth/login', {
@@ -251,6 +280,7 @@ export function AuthProvider({ children }) {
         verifyRegistrationOtp,
         resendRegistrationOtp,
         loginWithGoogle,
+        updateUser,
         logout
       }}
     >
