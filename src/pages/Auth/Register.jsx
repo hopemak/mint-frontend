@@ -1,3 +1,4 @@
+import PasswordHints from "../../components/PasswordHints"
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
@@ -103,6 +104,7 @@ export default function Register() {
                 </button>
               </div>
               {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password.message}</p>}
+              <PasswordHints />
             </div>
 
             <div>
