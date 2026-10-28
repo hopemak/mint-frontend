@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
-import SuggestCategory from './SuggestCategory.jsx'
+import SuggestCategory from './IndustrySuggestion.jsx'
 import toast from 'react-hot-toast'
 import {
   ArrowUpTrayIcon,
