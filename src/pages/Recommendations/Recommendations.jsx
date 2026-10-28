@@ -58,7 +58,14 @@ export default function Recommendations() {
         }
         if (!cancelled) setStartup(primary)
 
-        const startupData = { sector: primary.sector }
+        // More detail than the sector lets the rules match on topics, stage and funding too
+        const startupData = {
+          sector: primary.sector,
+          description: primary.description,
+          trl: primary.trl,
+          trl_level: primary.trl_level,
+          funding_needed: primary.funding_needed,
+        }
 
         const [mentorRes, investorRes, grantRes, paperRes, eventRes] = await Promise.all([
           mentorAPI.match(startupData),
