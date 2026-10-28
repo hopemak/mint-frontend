@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import toast from 'react-hot-toast'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { ideaAPI } from '../../services/api.js'
+import AiAdvicePanel from './AiAdvicePanel.jsx'
 
 // The server recalculates everything. These values only power the live preview.
 const CRITERIA = [
@@ -110,6 +111,7 @@ export default function IdeaReviewModal({ idea, onClose, onDone }) {
           <p className="text-xs text-slate-400">{idea.industry || 'General'} - Innovation level {idea.innovation_level || 'N/A'}/10</p>
         </div>
 
+        <AiAdvicePanel idea={idea} />
         <h4 className="font-heading font-semibold text-ink dark:text-white mt-6 mb-2">1. Score each criterion (1 = weak, 5 = excellent)</h4>
         <div className="space-y-3">
           {CRITERIA.map((c) => (
