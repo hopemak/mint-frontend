@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
+import SuggestCategory from './SuggestCategory.jsx'
 import toast from 'react-hot-toast'
 import {
   ArrowUpTrayIcon,
@@ -64,7 +65,7 @@ const exportToPDF = async (element, filename = 'evaluation_report.pdf') => {
 }
 
 export default function IdeaSubmission() {
-  const { register, handleSubmit, watch, formState: { isSubmitting }, reset } = useForm({
+  const { register, handleSubmit, watch, formState: { isSubmitting }, reset, setValue } = useForm({
     defaultValues: { 
       title: '',
       problem: '',
@@ -447,6 +448,7 @@ CONFIDENTIAL - For Official Use Only
               </select>
             </div>
           </div>
+          <SuggestCategory title={title} problem={problem} solution={watch("solution")} industries={INDUSTRIES} onPick={(f, v) => setValue(f, v)} />
           <div className="grid sm:grid-cols-2 gap-5">
             <div>
               <label className="label">Problem Statement *</label>

@@ -336,3 +336,8 @@ export const notificationAPI = {
   read: (id) => api.put(`/api/notifications/${id}/read`),
   readAll: () => api.put('/api/notifications/read-all'),
 }
+
+// Idea category suggestion (Naive Bayes classifier)
+export const classifyAPI = {
+  classify: (data) => api.post('/api/ml/classify-idea', data),
+}
