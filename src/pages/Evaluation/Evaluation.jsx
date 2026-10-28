@@ -39,6 +39,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid'
 import Gauge from '../../components/Gauge.jsx'
+import HybridPanel from '../../components/HybridPanel.jsx'
 import { PageHeader, ErrorNotice } from '../../components/ui.jsx'
 import { evaluation as sampleEvaluation } from '../../data/sampleData.js'
 import { mlAPI, startupAPI, evaluationAPI } from '../../services/api.js'
@@ -231,6 +232,10 @@ export default function Evaluation() {
   const [loading, setLoading]                 = useState(false)
   const [isFallback, setIsFallback]           = useState(false)
 
+  // ── Hybrid AI check (Random Forest runs on the language-model scores) ───────
+  const [hybrid, setHybrid]                   = useState({ status: 'idle', ml: null, metrics: null })
+  const hybridRun                             = useRef(0)
+
   // ── Startup selector ─────────────────────────────────────────────────────────
   const [myStartups, setMyStartups]           = useState([])
   const [startupsLoading, setStartupsLoading] = useState(false)
@@ -318,6 +323,8 @@ export default function Evaluation() {
   }
 
   const handleNew = () => {
+    hybridRun.current += 1
+    setHybrid({ status: 'idle', ml: null, metrics: null })
     setFormData({
       title: '', description: '', category: '', industry: '',
       target_market: '', business_model: '',
@@ -331,6 +338,38 @@ export default function Evaluation() {
     setShowForm(true)
     setFormExpanded(true)
     toast.success('Ready for a new evaluation!')
+  }
+
+  // ── Hybrid step: feed the language-model scores into the Random Forest ──────
+  const runHybrid = async (d) => {
+    const run = ++hybridRun.current
+    setHybrid({ status: 'loading', ml: null, metrics: null })
+    const s = selectedStartup || {}
+    const pick = (key, value) => (value === undefined || value === null || value === '' || Number.isNaN(Number(value)) ? {} : { [key]: Number(value) })
+    const payload = {
+      innovation_score:      d.innovation_score,
+      market_potential:      d.market_potential,
+      technical_feasibility: d.feasibility,
+      business_model:        d.financial_viability, // closest score the language model returns
+      financial_plan:        d.financial_plan,
+      social_impact:         d.social_impact,
+      team_capability:       d.team_capability,
+      overall_risk:          d.risk_score,
+      // Profile facts, used only when the selected startup has them
+      ...pick('trl_level', s.trl_level),
+      ...pick('employee_count', s.employee_count),
+      ...pick('is_rural', s.is_rural === true ? 1 : s.is_rural === false ? 0 : s.is_rural),
+      ...pick('has_prototype', s.has_prototype === true ? 1 : s.has_prototype === false ? 0 : s.has_prototype),
+      ...pick('has_patent', s.has_patent === true ? 1 : s.has_patent === false ? 0 : s.has_patent),
+      ...pick('patent_count', s.patent_count),
+      ...pick('requested_funding', s.requested_funding),
+      ...pick('private_funding', s.previous_private_funding ?? s.private_funding),
+    }
+    const [p, m] = await Promise.allSettled([mlAPI.predict(payload), mlAPI.metrics()])
+    if (run !== hybridRun.current) return // a newer evaluation started
+    const ml = p.status === 'fulfilled' && p.value.data?.success ? p.value.data.data : null
+    const metrics = m.status === 'fulfilled' && m.value.data?.success ? m.value.data.data : null
+    setHybrid({ status: ml ? 'ready' : 'error', ml, metrics })
   }
 
   // ── Run evaluation ────────────────────────────────────────────────────────────
@@ -403,6 +442,7 @@ export default function Evaluation() {
         setEvaluationData(result)
         setIsFallback(false)
         toast.success('Evaluation complete!')
+        runHybrid(d) // non-blocking: the page never waits for it
 
         // ── Save result to backend (non-blocking) ───────────────────────────
         evaluationAPI.save({
@@ -447,6 +487,8 @@ export default function Evaluation() {
 
   // ── Restore a history entry ───────────────────────────────────────────────────
   const handleRestoreHistory = (entry) => {
+    hybridRun.current += 1
+    setHybrid({ status: 'idle', ml: null, metrics: null })
     const scores = entry.scores || {}
     setEvaluationData({
       overallScore:    entry.overall_score,
@@ -939,6 +981,11 @@ export default function Evaluation() {
             </div>
           </div>
         </div>
+
+        {/* Hybrid AI check: language model + Random Forest + rules */}
+        {hybrid.status !== 'idle' && !isFallback && (
+          <HybridPanel status={hybrid.status} ml={hybrid.ml} metrics={hybrid.metrics} llmScore={displayData.overallScore} />
+        )}
 
         {/* Dimension Score Cards */}
         <h2 className="font-heading font-semibold text-ink dark:text-white mb-4 flex items-center gap-2">

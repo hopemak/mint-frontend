@@ -60,6 +60,9 @@ export const mlAPI = {
     console.log('💬 Chat message:', message)
     return api.post('/api/public/chat', { message, context: context || {} })
   },
+  // Random Forest success prediction (needs a signed-in user)
+  predict: (data) => api.post('/api/ml/predict', data),
+  metrics: () => api.get('/api/ml/metrics'),
 }
 
 // ============================================================
