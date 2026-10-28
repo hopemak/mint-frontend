@@ -30,6 +30,10 @@ export default function Analytics() {
   if (!data) return <div className="p-8 text-center text-slate-500">No data available</div>
 
 
+  // Forecast comes from the Random Forest (see /api/analytics); sample data only when the API is down
+  const successForecast = data?.successForecast ?? null
+  const forecastSeries = successForecast?.series ?? (isFallback ? (data?.forecast ?? []) : [])
+
   if (loading) return <LoadingBlock />
 
   return (
@@ -99,19 +103,35 @@ export default function Analytics() {
         </div>
 
         <div className="card p-5">
-          <h2 className="font-heading font-semibold text-ink dark:text-white mb-4">Startup Success Forecast</h2>
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={(data?.eventRegistrations ?? []) || []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="optimistic" stroke="#1D4241" strokeWidth={2} name="Optimistic" />
-              <Line type="monotone" dataKey="base" stroke="#4C8884" strokeWidth={2} name="Base" />
-              <Line type="monotone" dataKey="conservative" stroke="#EF9C82" strokeWidth={2} name="Conservative" strokeDasharray="4 4" />
-            </LineChart>
-          </ResponsiveContainer>
+          <h2 className="font-heading font-semibold text-ink dark:text-white">Startup Success Forecast</h2>
+          <p className="mb-3 mt-1 text-xs text-slate-500 dark:text-slate-400">
+            {successForecast
+              ? `${successForecast.startups} registered startups \u00b7 ${successForecast.scored} with an AI evaluation \u00b7 about ${successForecast.expected} expected to succeed (${successForecast.avgProbability}% average chance)`
+              : 'Startups expected to succeed within 2 years, estimated by the Random Forest model'}
+          </p>
+          {forecastSeries.length > 0 ? (
+            <ResponsiveContainer width="100%" height={240}>
+              <LineChart data={forecastSeries}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip formatter={(v, name) => [`${v} startups`, name]} />
+                <Legend />
+                <Line type="monotone" dataKey="optimistic" stroke="#1D4241" strokeWidth={2} name="Optimistic" />
+                <Line type="monotone" dataKey="base" stroke="#4C8884" strokeWidth={2} name="Base" />
+                <Line type="monotone" dataKey="conservative" stroke="#EF9C82" strokeWidth={2} name="Conservative" strokeDasharray="4 4" />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex h-[240px] items-center justify-center rounded-xl bg-slate-50 px-6 text-center text-sm text-slate-500 dark:bg-primary-800/60 dark:text-slate-400">
+              No forecast yet. It appears once startups are registered and the prediction model is available.
+            </div>
+          )}
+          <p className="mt-3 text-[11px] leading-relaxed text-slate-400">
+            Each line adds up the success chances of the registered startups. Base is the expected total.
+            Conservative and Optimistic are the 10th and 90th percentile across the model's 150 trees.
+            Startups without an AI evaluation use average default scores. This is a planning estimate, not a guarantee.
+          </p>
         </div>
       </div>
 
