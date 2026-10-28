@@ -847,9 +847,11 @@ export default function Admin() {
                   {idea.status === 'rejected' && <span className="badge bg-red-100 text-red-700">Rejected</span>}
                 </div>
                 <div className="flex gap-2 mt-3">
+                  {false && (
                   <button onClick={() => handleEvaluateIdea(idea.id || idea._id)} className="btn btn-primary text-xs flex-1" disabled={idea.status === 'evaluated'}>
                     {idea.status === 'evaluated' ? 'Evaluated' : 'Run AI Evaluation'}
                   </button>
+                  )}
                   <button onClick={() => handleDeleteIdea(idea.id || idea._id || idea.idea_id)} className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500"><TrashIcon className="h-4 w-4" /></button>
                 </div>
               </div>
