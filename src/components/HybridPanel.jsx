@@ -54,7 +54,7 @@ export default function HybridPanel({ status, ml, metrics, llmScore }) {
   if (status === 'loading') {
     return (
       <div className="card mb-6 p-5" aria-busy="true">
-        <p className="text-sm font-semibold text-ink dark:text-white">Hybrid AI check</p>
+        <p className="text-sm font-semibold text-ink dark:text-white">Success Outlook</p>
         <div className="mt-3 h-24 animate-pulse rounded-xl bg-slate-100 dark:bg-primary-700" />
       </div>
     )
@@ -63,7 +63,7 @@ export default function HybridPanel({ status, ml, metrics, llmScore }) {
   if (status === 'error' || !ml) {
     return (
       <div className="card mb-6 p-5">
-        <p className="text-sm font-semibold text-ink dark:text-white">Hybrid AI check</p>
+        <p className="text-sm font-semibold text-ink dark:text-white">Success Outlook</p>
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
           The success-prediction model is not reachable right now. The language-model evaluation above is still valid.
         </p>
@@ -81,7 +81,7 @@ export default function HybridPanel({ status, ml, metrics, llmScore }) {
     <div className="card mb-6 p-5 sm:p-6">
       <div className="mb-1 flex items-center gap-2">
         <SparklesIcon className="h-5 w-5 text-primary" />
-        <h2 className="font-heading font-semibold text-ink dark:text-white">Hybrid AI check</h2>
+        <h2 className="font-heading font-semibold text-ink dark:text-white">Success Outlook</h2>
       </div>
       <p className="mb-4 text-xs text-slate-400">
         A language model, a machine-learning model and a rule layer, working together.

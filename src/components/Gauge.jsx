@@ -42,7 +42,8 @@ export default function Gauge({
   const describeArc = (v0, v1, radius = r) => {
     const start = toPoint(v0, radius)
     const end = toPoint(v1, radius)
-    const largeArc = v1 - v0 > 50 ? 1 : 0
+    // A semi-circle never spans more than 180 degrees, so the short way round is always right.
+    const largeArc = 0
     return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArc} 1 ${end.x} ${end.y}`
   }
 

@@ -232,7 +232,7 @@ export default function Evaluation() {
   const [loading, setLoading]                 = useState(false)
   const [isFallback, setIsFallback]           = useState(false)
 
-  // ── Hybrid AI check (Random Forest runs on the language-model scores) ───────
+  // ── Success Outlook (Random Forest runs on the language-model scores) ───────
   const [hybrid, setHybrid]                   = useState({ status: 'idle', ml: null, metrics: null })
   const hybridRun                             = useRef(0)
 
@@ -982,7 +982,7 @@ export default function Evaluation() {
           </div>
         </div>
 
-        {/* Hybrid AI check: language model + Random Forest + rules */}
+        {/* Success Outlook: language model + Random Forest + rules */}
         {hybrid.status !== 'idle' && !isFallback && (
           <HybridPanel status={hybrid.status} ml={hybrid.ml} metrics={hybrid.metrics} llmScore={displayData.overallScore} />
         )}
