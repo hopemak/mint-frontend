@@ -20,6 +20,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { PageHeader, LoadingBlock } from '../../components/ui.jsx'
 import IdeaReviewModal from './IdeaReviewModal.jsx'
+import { ideaStatusLabel } from '../../utils/ideaStatus.js'
 import {
   userAPI,
   auditAPI,
@@ -833,7 +834,7 @@ export default function Admin() {
                     <p className="font-heading font-semibold text-ink dark:text-white truncate">{idea.title || 'Untitled'}</p>
                     <p className="text-xs text-slate-500">{idea.industry || idea.sector || 'General'} - Innovation: {idea.innovation_level || 'N/A'}/10</p>
                   </div>
-                  <span className={'badge shrink-0 capitalize ' + (statusColor[idea.status?.toLowerCase()] || 'bg-slate-100 text-slate-600')}>{idea.status || 'pending'}</span>
+                  <span className={'badge shrink-0 capitalize ' + (statusColor[idea.status?.toLowerCase()] || 'bg-slate-100 text-slate-600')}>{ideaStatusLabel(idea.status)}</span>
                 </div>
                 <p className="text-sm text-slate-500 mt-3 line-clamp-3 flex-1">{idea.problem || idea.description || 'No description'}</p>
                 <div className="flex flex-wrap gap-2 mt-3">

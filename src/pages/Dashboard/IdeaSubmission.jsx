@@ -242,7 +242,7 @@ export default function IdeaSubmission() {
       ideaProblem: data.problem,
       ideaSolution: data.solution,
       timestamp: new Date().toLocaleString(),
-      approval_status: overall >= 70 ? 'Approved' : 'Under Review',
+      approval_status: 'Pending Review',
     }
   }
 
@@ -580,7 +580,7 @@ CONFIDENTIAL - For Official Use Only
                 <div className="flex items-center gap-4">
                   <span className="text-5xl font-bold">{evaluationResult.overallScore}%</span>
                   <span className="bg-white/20 px-3 py-1 rounded-full text-sm">{evaluationResult.rating}</span>
-                  <span className="bg-white/10 px-3 py-1 rounded-full text-sm">Status: {evaluationResult.approval_status}</span>
+                  <span className="bg-white/10 px-3 py-1 rounded-full text-sm">Status: Pending review</span>
                 </div>
               </div>
               <div className="grid sm:grid-cols-3 lg:grid-cols-6 gap-3">
