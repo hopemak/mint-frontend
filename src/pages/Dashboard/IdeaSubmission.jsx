@@ -19,6 +19,7 @@ import {
 import { PageHeader } from '../../components/ui.jsx'
 import Gauge from '../../components/Gauge.jsx'
 import api from '../../services/api.js'
+import DuplicateHint from './DuplicateHint.jsx'
 
 const CATEGORIES = ['Agriculture', 'Healthcare', 'FinTech', 'EdTech', 'CleanTech', 'AI/ML']
 const INDUSTRIES = ['Technology', 'Healthcare', 'Finance', 'Agriculture', 'Education']
@@ -523,6 +524,7 @@ CONFIDENTIAL - For Official Use Only
             <ExclamationTriangleIcon className="h-5 w-5 text-[#EF9C82] shrink-0" />
             <div><p className="text-sm font-medium text-[#EF9C82]">Duplicate Check</p><p className="text-xs text-slate-500">No similar ideas found</p></div>
           </div>
+          <DuplicateHint title={watch('title')} problem={watch('problem')} solution={watch('solution')} />
           <button type="submit" form="idea-form" disabled={isSubmitting} className="btn-primary w-full py-3">{isSubmitting ? 'Submitting...' : 'Submit Idea'}</button>
         </aside>
       </div>
