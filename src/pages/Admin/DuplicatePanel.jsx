@@ -13,7 +13,7 @@ export default function DuplicatePanel({ idea }) {
     try {
       const response = await duplicateAPI.check(idea)
       const matches = (response.data?.matches || []).filter((m) => m.score > 0)
-      setState({ status: 'ready', matches })
+      setState({ status: 'ready', matches, total: response.data?.compared_with })
     } catch (e) {
       console.error('Duplicate check failed:', e.response?.status, e.response?.data || e)
       setState({ status: 'error', matches: [] })
@@ -43,7 +43,7 @@ export default function DuplicatePanel({ idea }) {
       )}
 
       {state.status === 'ready' && state.matches.length === 0 && (
-        <p className="mt-3 text-xs text-emerald-600">No similar ideas found.</p>
+        <p className="mt-3 text-xs text-emerald-600">No similar ideas found (compared with {state.total ?? '?'} other saved ideas).</p>
       )}
 
       {state.status === 'ready' && state.matches.length > 0 && (
