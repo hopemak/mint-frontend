@@ -70,8 +70,6 @@ export default function App() {
             <Route path="/startups/:id/edit" element={<EditStartup />} />
             <Route path="/evaluate" element={<Evaluation />} />
             <Route path="/recommendations" element={<Recommendations />} />
-            <Route path="/mentor-workspace" element={<MentorWorkspace />} />
-            <Route path="/funder-workspace" element={<InvestorWorkspace />} />
             <Route path="/chatbot" element={<Chatbot />} />
             <Route path="/share-story" element={<ShareStory />} />
             <Route path="/pitch-coach" element={<PitchCoach />} />
@@ -91,6 +89,12 @@ export default function App() {
             <Route path="/analytics" element={<Analytics />} />
           </Route>
 
+          <Route element={<RoleRoute allow={['mentor']} />}>
+            <Route path="/mentor-workspace" element={<MentorWorkspace />} />
+          </Route>
+          <Route element={<RoleRoute allow={['investor']} />}>
+            <Route path="/funder-workspace" element={<InvestorWorkspace />} />
+          </Route>
           <Route element={<RoleRoute allow={['admin']} />}>
             <Route path="/admin" element={<Admin />} />
             <Route path="/admin/testimonials" element={<AdminTestimonials />} />
