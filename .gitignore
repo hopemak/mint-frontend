@@ -34,3 +34,5 @@ yarn-error.log*
 .env.local
 *.bak
 src/App.jsx.bak-workspaces
+*.bak-links
+src/App.jsx.bak-workspaces

@@ -32,10 +32,12 @@ import Funding from './pages/Funding/Funding.jsx'
 import Restricted from './pages/Restricted/Restricted.jsx'
 import MentorWorkspace from './pages/Mentor/MentorWorkspace.jsx'
 import InvestorWorkspace from './pages/Investor/InvestorWorkspace.jsx'
+import WorkspaceLinks from './components/WorkspaceLinks.jsx'
 
 export default function App() {
   return (
     <>
+      <WorkspaceLinks />
       <Toaster position="top-right" toastOptions={{ style: { fontFamily: 'Inter, sans-serif', fontSize: '14px' } }} />
       <Routes>
         <Route path="/" element={<Landing />} />
