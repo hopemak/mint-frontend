@@ -30,6 +30,8 @@ import AdminTestimonials from './pages/Testimonials/AdminTestimonials.jsx'
 import Chatbot from './pages/Chatbot/Chatbot.jsx'
 import Funding from './pages/Funding/Funding.jsx'
 import Restricted from './pages/Restricted/Restricted.jsx'
+import MentorWorkspace from './pages/Mentor/MentorWorkspace.jsx'
+import InvestorWorkspace from './pages/Investor/InvestorWorkspace.jsx'
 
 export default function App() {
   return (
@@ -66,6 +68,8 @@ export default function App() {
             <Route path="/startups/:id/edit" element={<EditStartup />} />
             <Route path="/evaluate" element={<Evaluation />} />
             <Route path="/recommendations" element={<Recommendations />} />
+            <Route path="/mentor-workspace" element={<MentorWorkspace />} />
+            <Route path="/funder-workspace" element={<InvestorWorkspace />} />
             <Route path="/chatbot" element={<Chatbot />} />
             <Route path="/share-story" element={<ShareStory />} />
             <Route path="/pitch-coach" element={<PitchCoach />} />

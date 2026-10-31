@@ -33,3 +33,4 @@ yarn-error.log*
 *.pre-*
 .env.local
 *.bak
+src/App.jsx.bak-workspaces
